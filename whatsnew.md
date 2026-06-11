@@ -1,3 +1,44 @@
+### 10.0.0
+
+
+- DHTMLX Gantt Community Edition is officially released - the free edition is now distributed under the MIT license (replacing the former GPL distribution), and gantt.license returns "mit"
+- Angular Gantt wrapper is officially released
+- Vue Gantt wrapper is officially released
+- Zoom-to-fit is available out of the box: gantt.ext.zoom.zoomToFit() picks the most detailed zoom level that fits all tasks into the timeline without horizontal scrolling, and resetZoom() reverts to the previous scale
+- React Gantt now provides ready-to-use React hooks for the most commonly used Gantt APIs and ships with working defaults for the resource histogram, removing most of the boilerplate previously needed to access the native instance
+- Support for additional locales is added - including Simplified Chinese, Traditional Chinese, Cantonese, Thai, and Vietnamese - and existing translations have been improved
+
+- The Auto Scheduling engine has been deeply reworked, which allowed fixing long-lived bugs
+- Updated TypeScript typings, see the Data Model overview for details
+- Date parsing and formatting now use a single CSP-safe implementation
+- The Zoom extension now ships with ready-to-use named default levels, so it can be initialized without a custom levels config (gantt.ext.zoom.init())
+- The gantt.date interval-start helpers are now pure - they return a new Date instead of modifying the passed one
+- React Gantt now passes the gantt instance to the customLightbox component, allowing direct access to the Gantt API from the custom editor
+- React Gantt, Vue Gantt, and Angular Gantt wrappers now HTML-escape string values returned from template functions by default to prevent XSS attacks. This applies to templates, config.columns[].template, and config.scales[].format functions
+
+- The reworked Auto Scheduling engine resolves a number of long-standing scheduling, constraint, and critical path bugs:
+
+- Fix the issue where tasks with the ASAP behavior were moved before the project_start date when their siblings had snet/snlt constraints
+- Fix unexpected shifting of sibling tasks to earlier dates during Auto Scheduling when auto_scheduling_move_projects was enabled
+- Fix the issue where child tasks were rescheduled to wrong dates when their parent project used a different calendar than its children
+- Fix the issue where child tasks were moved to a future date when their linked predecessor had non-working time and the child used a full-time calendar
+- Fix the issue where child tasks with their own calendars were scheduled to a future date when inherit_calendar was enabled in multi-level projects
+- Fix the issue where tasks could be scheduled past the project_end date during backward Auto Scheduling
+- Fix the issue where Auto Scheduling did not resize tasks whose end_date changed after the work time settings were modified, even when the task did not need to move
+- Fix the error thrown when a task had a constraint but its auto_scheduling property was set to false
+- Fix the issue where the onBeforeTaskAutoSchedule event did not fire for tasks that had no links, so they could not be excluded from scheduling
+- Fix incorrect Total Slack and critical path calculation for Start-to-Finish and Start-to-Start links
+- Fix the issue where a predecessor was not highlighted as critical when a negative-lag link made its successor finish earlier than the predecessor
+- Fix the invalid end_date argument error thrown by getTotalSlack when a project contained only a single parent task with no subtasks
+- Fix the issue where a subtask with the ASAP behavior jumped back and forth between dates on every Auto Scheduling run when a sibling had an MSO/MFO constraint and the parent project was connected with a Finish-to-Finish or Start-to-Finish link
+- Fix the issue where Auto Scheduling still applied constraint logic to MSO/MFO tasks when auto_scheduling_compatibility was enabled
+- Fix incorrect scheduling of a linked subtask when its link used a negative lag larger than the successor's duration and the parent project was connected with a Finish-to-Finish or Start-to-Finish link
+
+- Fix the issue where milestones were not converted to projects by auto_types when a subtask was added to them
+- Fix the issue in React Gantt where ISO date strings were not handled correctly without explicit parse_date/format_date templates
+- Fix the issue in React Gantt where a task could lose its parent when a new dataset was loaded with the child placed above its parent in the data
+- Fix the issue in React Gantt where the vertical reorder marker did not stretch to the full grid width
+
 ### 9.1.4
 
 - Fix the issue where rollup tasks could not be dragged on touch devices

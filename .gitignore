@@ -1,1 +1,6 @@
-.idea
+node_modules/
+codebase/
+dist/
+.tmp_devserver/
+*.log
+.DS_Store

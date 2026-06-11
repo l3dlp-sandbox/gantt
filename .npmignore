@@ -1,2 +1,10 @@
-.gitignore
-.idea
+samples/
+scripts/
+src/
+.github/
+.tmp_devserver/
+vite.config.js
+tsconfig.json
+eslint.config.js
+AGENTS.md
+CONTRIBUTING.md

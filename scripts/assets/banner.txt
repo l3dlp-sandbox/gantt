@@ -1,0 +1,7 @@
+dhtmlxGantt v.{{version}} (MIT edition)
+
+This version of dhtmlxGantt is distributed under the MIT license, see LICENSE.md for details.
+
+A Pro version with an extended feature set (auto scheduling, critical path, resource management, baselines and more) is available at https://dhtmlx.com/docs/products/dhtmlxGantt/
+
+(c) XB Software
