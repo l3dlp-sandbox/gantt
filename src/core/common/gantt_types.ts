@@ -5,6 +5,12 @@
 // Type definitions for dhtmlxGantt {{version}}
 // Project: https://dhtmlx.com/docs/products/dhtmlxGantt
 
+// Scale-domain types live in a single shared, dependency-free leaf module so the host config
+// surface and the timeline scale engine stay in sync. They are re-exported here to keep the
+// public type names (Scale, ScaleProjectionMode, …) importable from gantt_types unchanged.
+import type { Scale, ScaleProjectionMode, TimeUnit, ScaleUnit } from "./scale_types";
+export type { Scale, ScaleProjectionMode, TimeUnit, ScaleUnit };
+
 export type GanttCallback = (...args: any[]) => any;
 
 
@@ -5354,62 +5360,10 @@ export interface ScaleArray<ScaleObj> extends Array<ScaleObj> {
 	0: ScaleObj
 }
 
+// `Scale` and `ScaleProjectionMode` are defined in ./scale_types and re-exported at the top
+// of this file. `Scales` / `ScaleArray` stay here because the required-first-element tuple
+// shape is specific to the gantt config surface.
 export type Scales = ScaleArray<Scale>;
-
-export interface Scale {
-
-	/**
-	 * the name of the scale unit. The available values are: "minute", "hour", "day" (default), "week", "quarter", "month", "year".
-	*/
-	unit: string,
-
-	/**
-	 * the step of the time scale (X-Axis), 1 by default.
-	*/
-	step?: number,
-
-	/**
-	 * makes the scale label visible if the scale cell is larger than the viewport width
-	*/
-	sticky?: boolean,
-
-	/**
-	 * a function that returns the name of a CSS class that will be applied to the scale units. Takes a date object as a parameter.
-	 * @param a date that will be checked
-	*/
-	css?(date: Date): any,
-
-	/**
-	 * the format of the scale's labels. If set as a function, expects a date object as a parameter.
-	 * @param a date that will be converted
-	*/
-	format?: string | ((date: Date,) => any),
-
-	/**
-	 * the format of the scale's labels. If set as a function, expects a date object as a parameter.
-	 * @param a date that will be converted
-	*/
-	date?: string | ((date: Date,) => any),
-
-
-	/**
-	 * If specified, each cell in the scale will have fixed width, regardless of the number of rendered columns:
-	 *	If there are too few columns to fill the container, the remaining space will stay empty on the right.
-	 *	If there are too many columns, a horizontal scrollbar will appear.
-	 * The property applied only to the bottom-most scale item in config.scales, while specifying it on higher levels will have no effect.
-	 * */
-	column_width?: number | undefined,
-
-	/**
-	 * Can size task bars in day/week scales according to working hours or specified hours range rather than full 24-hour days.
-	 * */
-	projection?: ScaleProjectionMode | undefined | null 
-}
-
-export interface ScaleProjectionMode {
-	source: "fixedHours" | "taskCalendar",
-	hours?: string[] | number[],
-}
 
 export interface MessagePopupConfig {
 
@@ -7140,6 +7094,11 @@ export interface ZoomLevel {
 	 * the name of the level
 	*/
 	name: string
+
+	/**
+	 * an optional caption of the level for zoom controls. Not used by the chart itself
+	*/
+	label?: string
 
 	/**
 	 * the height of the scale

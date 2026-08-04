@@ -96,6 +96,17 @@ export default {
 			};
 		};
 
+		// GS-3482: close the editor before the lightbox opens. The resource grid lives inside the
+		// lightbox itself, so its own controller must not close on its own opening.
+		if (grid.$config.id !== "GridRL") {
+			gantt.attachEvent("onBeforeLightbox", function () {
+				if (controller.isVisible()) {
+					controller.save();// save() falls back to hide() when nothing was changed
+				}
+				return true;
+			});
+		}
+
 		gantt.attachEvent("onEmptyClick", function () {
 			if (controller.isVisible() && controller.isChanged()) {
 				controller.save();

@@ -1,3 +1,18 @@
+### 10.0.1
+
+- Fix the issue in React Gantt, Vue Gantt, and Angular Gantt where the zoom levels of the config.zoom property - and of the useZoom hook in React - were not applied to the chart when they changed after the initial render
+- Fix the issue in React Gantt where the exported ZoomLevel type did not match the type expected by the config.zoom property
+- Fix the issue in Vue Gantt where all baseline bars disappeared when the baselines prop was updated at runtime - baselines passed through the prop are now linked to their tasks both on the initial load and on every update
+- Fix the issue in Angular Gantt where the internal @dhx/gantt dependency was listed in the published package, so applications using the wrapper failed to build
+- Fix the issue where isCircularLink always returned false for links that had not been added to Gantt yet, making it impossible to detect a circular dependency before creating the link
+- Fix the issue where a task disappeared from the chart when it was dragged beyond the visible date range while the zoom-to-fit mode was active
+- Fix the issue where an inline editor stayed open after the edit form had been opened and remained on the screen after the task it belonged to was deleted
+- Fix the issue where the date_format property of the exportToExcel method was ignored, so dates were exported using the default format
+- Fix the error thrown by exportToExcel when the visual: true option was used and the data contained milestones
+- Fix the issue where tasks outside the date range set by the start_date and end_date configs were exported to Excel regardless of the show_tasks_outside_timescale config
+- Fix the start and end properties of the exportToExcel method, which threw an error instead of limiting the exported date range
+- Fix the issue where task bars were placed on wrong dates and partially missing in the exported Excel file when the RTL mode was enabled
+
 ### 10.0.0
 
 
@@ -29,10 +44,12 @@
 - Fix the issue where the onBeforeTaskAutoSchedule event did not fire for tasks that had no links, so they could not be excluded from scheduling
 - Fix incorrect Total Slack and critical path calculation for Start-to-Finish and Start-to-Start links
 - Fix the issue where a predecessor was not highlighted as critical when a negative-lag link made its successor finish earlier than the predecessor
+- Fix the issue where the critical path was not calculated for predecessor tasks when Auto Scheduling was disabled and a successor task ended earlier than its predecessor
 - Fix the invalid end_date argument error thrown by getTotalSlack when a project contained only a single parent task with no subtasks
 - Fix the issue where a subtask with the ASAP behavior jumped back and forth between dates on every Auto Scheduling run when a sibling had an MSO/MFO constraint and the parent project was connected with a Finish-to-Finish or Start-to-Finish link
 - Fix the issue where Auto Scheduling still applied constraint logic to MSO/MFO tasks when auto_scheduling_compatibility was enabled
 - Fix incorrect scheduling of a linked subtask when its link used a negative lag larger than the successor's duration and the parent project was connected with a Finish-to-Finish or Start-to-Finish link
+- Fix the issue where the relative positions of the child tasks of a linked subproject were not preserved when its parent project was rescheduled after the links had been changed
 
 - Fix the issue where milestones were not converted to projects by auto_types when a subtask was added to them
 - Fix the issue in React Gantt where ISO date strings were not handled correctly without explicit parse_date/format_date templates

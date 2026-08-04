@@ -1,11 +1,11 @@
 import env from "../../../utils/env";
 import eventable from "../../../utils/eventable";
-import { IScale, TModifierKeys } from "../../common/config";
+import { TModifierKeys } from "../../common/config";
+import type { Scale, TimeUnit } from "../../common/scale_types";
 
 type TZoomLevelReference = number | string;
 type TZoomToFitScope = "visible" | "all";
 type TZoomToFitRangeMode = "auto" | "preserve" | "target";
-type TScaleUnit = "minute" | "hour" | "day" | "week" | "month" | "quarter" | "year";
 
 interface IZoomToFitRange {
 	start_date: Date;
@@ -36,14 +36,14 @@ type TZoomToFitHandler = (context: IZoomToFitContext) => string | number | boole
 interface IZoomToFitConfig extends IZoomToFitOptions {
 	// optional, a dedicated set of zoom levels used only for "zoom to fit";
 	// defaults to the interactive zoom levels when not specified
-	levels?: IZoomLevel[] | IScale[][];
+	levels?: IZoomLevel[] | Scale[][];
 	// optional, fully overrides the level selection logic
 	handler?: TZoomToFitHandler;
 }
 
 interface IZoomSavedState {
 	levelIndex: number;
-	scales: IScale[] | undefined;
+	scales: Scale[] | undefined;
 	scale_height: number | undefined;
 	min_column_width: number | undefined;
 	start_date: Date | undefined;
@@ -73,7 +73,7 @@ const FIXED_UNITS = {
 	hour: 1000 * 60 * 60,
 	minute: 1000 * 60
 };
-const SCALE_ORDER: Record<TScaleUnit, number> = {
+const SCALE_ORDER: Record<TimeUnit, number> = {
 	minute: 0,
 	hour: 1,
 	day: 2,
@@ -85,9 +85,10 @@ const SCALE_ORDER: Record<TScaleUnit, number> = {
 
 interface IZoomLevel {
 	name?: string;
+	label?: string;
 	scale_height?: number;
 	min_column_width?: number;
-	scales: IScale[];
+	scales: Scale[];
 }
 
 interface IResolvedLevelRange {
@@ -96,7 +97,7 @@ interface IResolvedLevelRange {
 }
 
 interface IScaleColumnConfig {
-	unit: TScaleUnit;
+	unit: TimeUnit;
 	step: number;
 }
 
@@ -407,7 +408,7 @@ export default class TimelineZoom {
 		return zoomLevel;
 	};
 
-	protected _mapScales(levels: IScale[][] | any): IZoomLevel[]{
+	protected _mapScales(levels: Scale[][] | any): IZoomLevel[]{
 		return levels.map((l) => {
 			if(Array.isArray(l)){
 				return {
@@ -643,7 +644,7 @@ export default class TimelineZoom {
 		let smallestScale: IScaleColumnConfig | null = null;
 		level.scales.forEach((scale) => {
 			const candidate = {
-				unit: scale.unit as TScaleUnit,
+				unit: scale.unit as TimeUnit,
 				step: scale.step || 1
 			};
 
@@ -684,7 +685,7 @@ export default class TimelineZoom {
 		};
 	};
 
-	protected _countColumns = (from: Date, to: Date, unit: TScaleUnit, step: number) => {
+	protected _countColumns = (from: Date, to: Date, unit: TimeUnit, step: number) => {
 		if (FIXED_UNITS[unit]) {
 			return Math.round((to.valueOf() - from.valueOf()) / (step * FIXED_UNITS[unit]));
 		}
@@ -756,7 +757,9 @@ export default class TimelineZoom {
 		const gantt = this.$gantt;
 		const nextConfig = gantt.copy(levelConfig);
 		const chartConfig = gantt.copy(nextConfig);
+		// identification/presentation fields of the level are not chart config
 		delete chartConfig.name;
+		delete chartConfig.label;
 
 		gantt.mixin(gantt.config, chartConfig, true);
 

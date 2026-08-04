@@ -575,6 +575,7 @@ function isFolder() {
 		"10_layout",
 		"11_resources",
 		"20_multiple",
+		"50_showcase"
 	];
 	sampleFolders.forEach(function (folder) {
 		if (path.indexOf(folder) > -1) {

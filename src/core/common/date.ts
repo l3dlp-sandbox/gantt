@@ -19,8 +19,9 @@
 */
 
 import dateParsers from "./date_parsers";
+import type { DateHelpers } from "./gantt_types";
 
-export default function(gantt: any) {
+export default function(gantt: any): DateHelpers {
 	const isoDateRegex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 
 	function parseISODate(dateStr: string): Date | null {
@@ -209,11 +210,11 @@ export default function(gantt: any) {
 			return this.add(date, inc * 3, "month");
 		},
 
-		to_fixed(num: number): string | number {
+		to_fixed(num: number): string {
 			if (num < 10) {
 				return "0" + num;
 			}
-			return num;
+			return "" + num;
 		},
 		copy(date: Date): Date {
 			return new Date(date.valueOf());

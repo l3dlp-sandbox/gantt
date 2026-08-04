@@ -1,13 +1,5 @@
 // Lightweight JSON-RPC client used by the remote_events plugin.
-//
-// This is an embedded copy of the standalone "remote-client" npm package
-// (MIT, author: Maksim Kozhukh), converted to TypeScript and kept in-tree so
-// the gantt build carries no external runtime dependency (which the MIT
-// distribution cannot resolve). Behaviour mirrors the upstream package.
-//
-// Types and the Client live in this single module on purpose: the MIT repo
-// generator materializes sources from the build sourcemap, and a separate
-// type-only file would be erased at build time and never staged.
+
 
 export type RemoteFunction<T> = () => Promise<T>;
 export type InitCallback = () => void;

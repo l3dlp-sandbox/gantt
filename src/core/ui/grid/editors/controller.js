@@ -29,6 +29,12 @@ function create(gantt){
 
 	function createGridEditors(grid) {
 
+		// GS-3482: this controller is created twice - for the main task grid and for the resource
+		// grid rendered inside the lightbox. The GS-2598 branches below belong to the latter only.
+		function isLightboxEditor(){
+			return grid.$config.id === "GridRL";
+		}
+
 		function _getGridCellFromNode(node){
 			if(!domHelpers.isChildOf(node, grid.$grid)){
 				return null;
@@ -180,9 +186,13 @@ function create(gantt){
 				}));
 
 				ganttHandlers.push(gantt.attachEvent("onDataRender", function(){
-					if(self._editor && self._placeholder && !domHelpers.isChildOf(self._placeholder, gantt.$root)){
+					if(!(self._editor && self._placeholder)){
+						return;
+					}
+					if(!domHelpers.isChildOf(self._placeholder, gantt.$root)){
 						grid.$grid_data.appendChild(self._placeholder);
 					}
+					self.updatePosition();
 				}));
 
 				this.init = function(){};
@@ -231,7 +241,7 @@ function create(gantt){
 				}
 			},
 			isVisible: function(){
-				if(gantt._lightbox_id){
+				if(isLightboxEditor() && gantt._lightbox_id){
 					return !!(this._editor && domHelpers.isChildOf(this._placeholder, gantt._lightbox));
 				}
 				return !!(this._editor && domHelpers.isChildOf(this._placeholder, gantt.$root));
@@ -290,7 +300,7 @@ function create(gantt){
 				if(!editorConfig)
 					return;
 				// GS-2598: case for the editors in the lightbox
-				if (gantt._lightbox_id) {
+				if (isLightboxEditor() && gantt._lightbox_id) {
 					let assignment = store.getItem(this._itemId);
 
 					if (editorConfig.map_to === "text") {
@@ -319,6 +329,27 @@ function create(gantt){
 				this._editor.focus(this._placeholder);
 			},
 
+			// GS-3482: the placeholder is absolutely positioned and is created once, so it has to be
+			// realigned with its row whenever the rows above it shift
+			updatePosition: function(){
+				if(!this._placeholder || !this._itemId || !store || !store.exists(this._itemId)){
+					return;
+				}
+
+				var config = grid.$getConfig();
+				var pos = _getEditorPosition(this._itemId, this._columnName);
+				var style = this._placeholder.style;
+
+				style.top = pos.top + "px";
+				style.width = pos.width + "px";
+				style.height = pos.height + "px";
+				if (config.rtl) {
+					style.right = pos.right + "px";
+				} else {
+					style.left = pos.left + "px";
+				}
+			},
+
 			getValue: function () {
 				var column = grid.getColumn(this._columnName);
 				return this._editor.get_value(this._itemId, column, this._placeholder);
@@ -331,7 +362,7 @@ function create(gantt){
 					return;
 				var value;
 				// GS-2598: case for the editors in the lightbox
-				if(gantt._lightbox_id){
+				if(isLightboxEditor() && gantt._lightbox_id){
 					let assignment = store.getItem(this._itemId);
 					if (editorConfig.type === "select" && editorConfig.map_to !== "mode") {
 						let resource = gantt.getDatastore(gantt.config.resource_store).getItem(assignment.resource_id);
@@ -412,7 +443,7 @@ function create(gantt){
 				if (this.callEvent("onBeforeSave", [editorState]) !== false) {
 					if (!this._editor.is_valid || this._editor.is_valid(editorState.newValue, editorState.id, grid.getColumn(columnName), this._placeholder)) {
 						// GS-2598: set the initial value to the editor
-						if(gantt._lightbox_id){
+						if(isLightboxEditor() && gantt._lightbox_id){
 							if (editorState.newValue == ""){
 								editorState.newValue = editorState.oldValue;
 							}
@@ -431,7 +462,7 @@ function create(gantt){
 					}
 				}
 				// GS-2598: don't close editor when we working in the lightbox
-				if(!gantt._lightbox_id){
+				if(!(isLightboxEditor() && gantt._lightbox_id)){
 					this.hide();
 				}
 			},

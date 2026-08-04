@@ -31,9 +31,15 @@ export default function(gantt) {
 			: d(dateFormat, c.server_utc);
 		format_date._ganttAuto = true;
 
+
+		const parseDateFormat = date.str_to_date(dateFormat, c.server_utc);
 		var parse_date = isIso
 			? function(dateStr) { return date.parseDate(dateStr); }
-			: date.str_to_date(dateFormat, c.server_utc);
+			: function(dateStr) { 
+				if(dateStr && dateStr.getFullYear) { 
+					return new Date(dateStr);
+				} return parseDateFormat(dateStr);
+			};
 		parse_date._ganttAuto = true;
 
 		initTemplate("date_scale", true, undefined, gantt.config, gantt.templates);

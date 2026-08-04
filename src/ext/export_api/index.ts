@@ -73,7 +73,6 @@ export default function(gantt: any) {
 		exportToExcel(config:any) {
 			config = config || {};
 
-			let tasks;
 			let dates: any = [];
 			let state;
 			let scroll;
@@ -88,7 +87,6 @@ export default function(gantt: any) {
 				dates = [gantt.config.start_date, gantt.config.end_date];
 				scroll = gantt.getScrollState();
 				const convert = gantt.date.str_to_date(gantt.config.date_format);
-				tasks = gantt.eachTask;
 
 				if (config.start){
 					gantt.config.start_date = convert(config.start);
@@ -99,8 +97,6 @@ export default function(gantt: any) {
 
 				gantt.render();
 				gantt.config.smart_rendering = smartRendering;
-
-				gantt.eachTask = gantt.ext.export_api._eachTaskTimed(gantt.config.start_date, gantt.config.end_date);
 			} else if (config.visual === "base-colors"){
 				gantt.render();
 				gantt.config.smart_rendering = smartRendering;
@@ -112,7 +108,7 @@ export default function(gantt: any) {
 				data: gantt.ext.export_api._serializeTimeline(config),
 				columns: gantt.ext.export_api._serializeGrid({ raw: config.raw, rawDates: true }),
 				version: gantt.version
-			});
+			}, true);
 
 			if (config.visual){
 				config.scales = gantt.ext.export_api._serializeScales(config);
@@ -123,7 +119,6 @@ export default function(gantt: any) {
 			if (config.start || config.end) {
 				gantt.config.start_date = state.min_date;
 				gantt.config.end_date = state.max_date;
-				gantt.eachTask = tasks;
 
 				gantt.render();
 				gantt.scrollTo(scroll.x, scroll.y);
@@ -500,6 +495,29 @@ export default function(gantt: any) {
 			};
 		},
 
+		_isTaskInsideTimeline(task:any) {
+			if (!gantt.config.start_date || !gantt.config.end_date || gantt._isAllowedUnscheduledTask(task)){
+				return true;
+			}
+			let startDate = task.start_date;
+			let endDate = task.end_date;
+			if (!startDate && !endDate){
+				return false;
+			}
+			if (typeof startDate === "string"){
+				startDate = gantt.date.str_to_date(gantt.config.date_format)(startDate);
+			}
+			if (typeof endDate === "string"){
+				endDate = gantt.date.str_to_date(gantt.config.date_format)(endDate);
+			}
+			if (!startDate){
+				startDate = gantt.calculateEndDate({start_date: endDate, duration: -task.duration, task});
+			}
+			if (!endDate){
+				endDate = gantt.calculateEndDate({start_date: startDate, duration: task.duration, task});
+			}
+			return !(+endDate <= +gantt.config.start_date || +gantt.config.end_date <= +startDate);
+		},
 
 		// patch broken json serialization in gantt 2.1
 		_originalCopyObject: gantt.json._copyObject,
@@ -518,6 +536,13 @@ export default function(gantt: any) {
 
 			const copy = gantt.json.serializeTask(task);
 			copy.text = text || copy.text;
+
+			// GS-3493. Keep internal properties that will be used later by the export module
+			copy.$level = task.$level;
+			copy.$rendered_type = task.$rendered_type;
+			// GS-3499. Keep the date objects a they wil be converted to ISO format later
+			copy.start_date = task.start_date;
+			copy.end_date = task.end_date;
 
 			return copy;
 		},
@@ -577,7 +602,7 @@ export default function(gantt: any) {
 		_generateScales(){
 			const state = gantt.getState();
 			const scaleHelper = ScaleHelper(gantt);
-			const scales = [scaleHelper.primaryScale(gantt.config)].concat(scaleHelper.getSubScales(gantt.config));
+			const scales = [scaleHelper.primaryScale(gantt.config)].concat(scaleHelper.getAdditionalScales(gantt.config));
 
 			const scalesConfig = scaleHelper.prepareConfigs(scales, gantt.config.min_column_width, 1000, gantt.config.scale_height - 1, state.min_date, state.max_date, gantt.config.rtl);
 			gantt.ext.export_api._generatedScales = scalesConfig;
@@ -630,6 +655,11 @@ export default function(gantt: any) {
 				copy.$start = getDayIndex.call(gantt, startDate);
 				copy.$end = getDayIndex.call(gantt, endDate);
 			}
+			if (gantt.config.rtl) {
+				const startIndex = copy.$start;
+				copy.$start = copy.$end;
+				copy.$end = startIndex;
+			}
 
 			// GS-2100. Correct bar position considering hidden cells
 			let hiddenCells = 0;
@@ -662,7 +692,7 @@ export default function(gantt: any) {
 			const node = gantt.getTaskNode && gantt.getTaskNode(obj.id);
 			if (node && node.firstChild) {
 				let targetNode = node;
-				if (config.visual !== "base-colors"){
+				if (config.visual !== "base-colors" && copy.type !== gantt.config.types.milestone){
 					targetNode = node.querySelector(".gantt_task_progress")
 				}
 
@@ -797,15 +827,30 @@ export default function(gantt: any) {
 				config.custom_dataset = true;
 			}
 
+			// Save filtered tasks in a separate dataset to not iterate all tasks multiple times
+			const datasetForExport: any = [];
 			let tasks = config.data || gantt.serialize().data;
 			tasks.forEach(function(task:any, index:any){
+				// GS-3508. Don't export tasks outside the timeline with disabled `show_tasks_outside_timescale`
+				if (!gantt.config.show_tasks_outside_timescale && !gantt.ext.export_api._isTaskInsideTimeline(task)){
+					return;
+				}
+				if (!config.custom_dataset){
+					const existingTask = gantt.getTask(task.id);
+					// GS-3493. Retrieve the tree level from existing task
+					task.$level = existingTask.$level;
+					// GS-3499. Retrieve the dates as they should be coverted
+					// later to ISO string to support custom date format
+					task.start_date = existingTask.start_date;
+					task.end_date = existingTask.end_date;
+				}
 				if (config.visual){
 					// Save split tasks dates inside the parent object
 					if (task.render == "split"){
 						const children:any = [];
 						if (config.custom_dataset){
 							tasks.forEach(function(child:any){
-								if (child.parent == task.id){
+								if (child.parent == task.id && gantt.ext.export_api._isTaskInsideTimeline(child)){
 									const childBar = gantt.ext.export_api._copyObjectColors(child, config);
 									childBar.$split_subtask = true;
 									children.push(childBar);
@@ -814,8 +859,10 @@ export default function(gantt: any) {
 						}
 						else {
 							gantt.eachTask(function(child:any){
-								const childBar = gantt.ext.export_api._copyObjectColors(child, config);
-								children.push(childBar);
+								if (gantt.ext.export_api._isTaskInsideTimeline(child)){
+									const childBar = gantt.ext.export_api._copyObjectColors(child, config);
+									children.push(childBar);
+								}
 							}, task.id);
 						}
 
@@ -851,16 +898,23 @@ export default function(gantt: any) {
 								task.split_bars.push(child)
 							}
 						}
-
-						tasks[index] = task;
+						// GS-3499. _copyObjectTable converts the dates to ISO format
+						tasks[index] = gantt.ext.export_api._copyObjectTable(task);
 					} else if (!task.$split_subtask){
-						tasks[index] = gantt.ext.export_api._copyObjectColors(task, config);
+						if (gantt.ext.export_api._isTaskInsideTimeline(task)){
+							tasks[index] = gantt.ext.export_api._copyObjectColors(task, config);
+						}
+						else {
+							tasks[index] = gantt.ext.export_api._copyObjectTable(task);
+						}
 					}
 				}
 				else {
 					tasks[index] = gantt.ext.export_api._copyObjectTable(task);
 				}
-			})
+				datasetForExport.push(tasks[index]);
+			});
+			tasks = datasetForExport;
 
 			// Filter tasks
 			if (config.raw && !config.data){

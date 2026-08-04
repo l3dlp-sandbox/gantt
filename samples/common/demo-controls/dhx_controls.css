@@ -1,0 +1,826 @@
+/* =============================================================================
+ * DHX Controls -- shared UI component library for DHTMLX Gantt demos
+ *
+ * Sections:
+ *   1.  Design tokens
+ *   2.  Page base
+ *   3.  Icons
+ *   4.  Buttons
+ *   5.  Segmented controls & tabs
+ *   6.  Dropdown system
+ *   7.  Search input
+ *   8.  Toggle switch
+ *   9.  Filter chip buttons
+ *  10.  Avatar chips
+ *  11.  Priority dots
+ *  12.  Layout chrome -- header / toolbar / footer
+ *  13.  Brand / project selector
+ *  14.  Resource panel trigger & menu
+ *  15.  Sub-toolbar (secondary filter bar)
+ *  16.  Number inputs & metric badges
+ *  17.  Dark theme overrides  (body.dhx_dark)
+ * ============================================================================= */
+
+/* -- 1. Design tokens ---------------------------------------------------------- */
+:root {
+    --dhx-font:         "Inter", Roboto, -apple-system, "Segoe UI", Arial, sans-serif;
+
+    /* text */
+    --dhx-ink:          #1f2630;
+    --dhx-ink-2:        #4a5560;
+    --dhx-muted:        #8a94a0;
+
+    /* borders & surfaces */
+    --dhx-line:         #e7eaee;
+    --dhx-line-2:       #eef1f4;
+    --dhx-bg:           #f4f5f7;
+
+    /* brand */
+    --dhx-accent:       #2563eb;
+    --dhx-accent-soft:  #eaf1fe;
+
+    /* shape */
+    --dhx-radius:       8px;
+}
+
+
+/* -- 2. Page base -------------------------------------------------------------- */
+html, body {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--dhx-font);
+    color: var(--dhx-ink);
+    background: var(--dhx-bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+
+/* -- 3. Icons ------------------------------------------------------------------ */
+/* Inline SVG icons -- uniform stroke, inherits color from parent. */
+.dhx_ic {
+    width: 16px;
+    height: 16px;
+    flex: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: inline-block;
+    vertical-align: middle;
+}
+.dhx_ic--sm { width: 14px; height: 14px; }
+
+
+/* -- 4. Buttons ---------------------------------------------------------------- */
+.dhx_btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 11px;
+    border: 1px solid transparent;
+    border-radius: var(--dhx-radius);
+    background: transparent;
+    color: var(--dhx-ink-2);
+    font: 500 13px var(--dhx-font);
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s, color .12s, box-shadow .12s;
+}
+.dhx_btn:hover  { background: #f2f4f7; color: var(--dhx-ink); }
+.dhx_btn:active { background: #e9edf2; }
+.dhx_btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(37,99,235,.45);
+}
+.dhx_btn[disabled] { opacity: .4; cursor: default; background: transparent; }
+
+/* Icon-only square variant */
+.dhx_btn--icon {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+    color: var(--dhx-ink-2);
+}
+
+/* Primary / CTA variant */
+.dhx_btn--primary {
+    background: var(--dhx-accent);
+    color: #fff;
+    border-color: var(--dhx-accent);
+    font-weight: 600;
+    padding: 0 13px;
+    box-shadow: 0 1px 2px rgba(37,99,235,.30);
+}
+.dhx_btn--primary:hover  { background: #1d4fd7; color: #fff; }
+.dhx_btn--primary:active { background: #1a45c0; }
+
+
+/* -- 5. Segmented controls & tabs ---------------------------------------------- */
+/* Both .dhx_seg (inline segmented) and .dhx_tabs (view switcher) share the same
+   pill container. The active item gets a white card with a subtle shadow. */
+.dhx_seg,
+.dhx_tabs {
+    display: inline-flex;
+    background: #eef1f4;
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.dhx_seg  .dhx_btn,
+.dhx_tabs .dhx_btn {
+    height: 28px;
+    border-radius: 7px;
+    color: var(--dhx-ink-2);
+    font-weight: 500;
+}
+.dhx_seg  .dhx_btn:hover,
+.dhx_tabs .dhx_btn:hover { background: rgba(255,255,255,.6); color: var(--dhx-ink); }
+
+.dhx_seg  .dhx_btn.active,
+.dhx_tabs .dhx_btn.active {
+    background: #fff;
+    color: var(--dhx-ink);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(16,24,40,.10), 0 1px 3px rgba(16,24,40,.06);
+}
+
+
+/* -- 6. Dropdown system -------------------------------------------------------- */
+.dhx_dd { position: relative; }
+
+.dhx_menu {
+    display: none;
+    position: absolute;
+    top: 40px;
+    left: 0;
+    min-width: 210px;
+    background: #fff;
+    border: 1px solid var(--dhx-line);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(16,24,40,.08), 0 12px 32px rgba(16,24,40,.12);
+    padding: 6px;
+    z-index: 50;
+}
+.dhx_menu--right { left: auto; right: 0; }
+
+.dhx_dd.open .dhx_menu { display: block; }
+
+/* Menu items */
+.dhx_menu__item {
+    padding: 8px 10px;
+    border-radius: 7px;
+    font: 500 13px var(--dhx-font);
+    color: var(--dhx-ink-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.dhx_menu__item:hover { background: #f2f4f7; color: var(--dhx-ink); }
+
+/* Checkbox pattern -- items with a leading checkmark slot */
+.dhx_menu__item.checked::before { content: "\2713"; color: var(--dhx-accent); font-weight: 700; }
+.dhx_menu__item--col:not(.checked)::before,
+.dhx_menu__item--check:not(.checked)::before { content: ""; width: 9px; display: inline-block; }
+
+/* Section label above a group of items */
+.dhx_menu__label {
+    font: 600 10px var(--dhx-font);
+    color: var(--dhx-muted);
+    padding: 8px 10px 3px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+/* Thin horizontal rule between sections */
+.dhx_menu__divider {
+    height: 1px;
+    margin: 8px 4px 7px;
+    background: var(--dhx-line);
+}
+
+/* Chevron caret used inside trigger buttons */
+.dhx_caret {
+    display: inline-flex;
+    opacity: .55;
+    margin-left: 1px;
+}
+
+
+/* -- 7. Search input ----------------------------------------------------------- */
+.dhx_search {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 11px;
+    border: 1px solid var(--dhx-line);
+    border-radius: var(--dhx-radius);
+    background: #fff;
+    color: var(--dhx-muted);
+    transition: border-color .12s, box-shadow .12s;
+}
+.dhx_search:focus-within {
+    border-color: var(--dhx-accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+.dhx_search input {
+    border: none;
+    outline: none;
+    font: 13px var(--dhx-font);
+    width: 320px;
+    background: transparent;
+    color: var(--dhx-ink);
+}
+.dhx_search input::placeholder { color: var(--dhx-muted); }
+
+
+/* -- 8. Toggle switch ---------------------------------------------------------- */
+/* Outer label that wraps the switch and its text label */
+.dhx_toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid #d7e2f1;
+    border-radius: 7px;
+    background: #fff;
+    font: 500 13px var(--dhx-font);
+    color: #0f172a;
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.dhx_toggle:hover { background: #f8fbff; border-color: #bcd3fb; }
+.dhx_toggle.active {
+    background: #eef5ff;
+    border-color: #bcd3fb;
+    color: #005bd3;
+}
+.dhx_toggle.active:hover { background: #e7f0ff; border-color: #9fc2fb; }
+.dhx_toggle:focus-within  { box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+
+/* The pill track */
+.dhx_toggle__track {
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d2d8df;
+    position: relative;
+    transition: background .18s ease;
+    display: inline-block;
+    flex: none;
+}
+/* Sliding dot */
+.dhx_toggle__track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(16,24,40,.3);
+    transition: left .18s ease;
+}
+.dhx_toggle__track.on           { background: var(--dhx-accent); }
+.dhx_toggle__track.on::after    { left: 18px; }
+
+
+/* -- 9. Filter chip buttons ---------------------------------------------------- */
+/* Small pill-shaped toggle buttons used in sub-toolbars, e.g. resource type
+   filters. Separate from .dhx_toggle (which is an ON/OFF switch). */
+.dhx_chip_btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border: 1px solid var(--dhx-line);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--dhx-ink-2);
+    font: 500 13px var(--dhx-font);
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s, border-color .12s, color .12s;
+}
+.dhx_chip_btn.active {
+    background: var(--dhx-accent-soft);
+    border-color: #bcd3fb;
+    color: var(--dhx-accent);
+}
+
+
+/* -- 10. Avatar chips ---------------------------------------------------------- */
+/* Stacked avatar stack in the header (not in grid cell templates -- those keep
+   their own "avatars / avatar" class names tied to JS template strings). */
+.dhx_chips { display: inline-flex; align-items: center; }
+
+.dhx_chip {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    font: 600 11px var(--dhx-font);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: -8px;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 2px rgba(16,24,40,.18);
+    box-sizing: border-box;
+}
+.dhx_chip:first-child       { margin-left: 0; }
+.dhx_chip--more             { background: #8a94a0; font-size: 10px; }
+
+
+/* -- 11. Priority dots --------------------------------------------------------- */
+.dhx_dots { display: inline-flex; gap: 3px; margin: 0 2px; }
+
+.dhx_dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.dhx_menu__item .dhx_dot { margin-right: 2px; }
+
+.dhx_dot--high   { background: #e5484d; }
+.dhx_dot--medium { background: #f5a623; }
+.dhx_dot--low    { background: #3aa757; }
+
+
+/* -- 12. Layout chrome --------------------------------------------------------- */
+
+/* Top header bar */
+.dhx_header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 60px;
+    padding: 0 18px;
+    background: #fff;
+    border-bottom: 1px solid var(--dhx-line);
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+.dhx_header__center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 auto;
+    flex: none;
+}
+.dhx_header__right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: none;
+}
+.dhx_header--centered {
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Main toolbar */
+.dhx_toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 48px;
+    padding: 0 14px;
+    background: #fff;
+    border-bottom: 1px solid var(--dhx-line);
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: visible; /* dropdowns must escape the bar */
+}
+
+/* Vertical separator */
+.dhx_sep {
+    width: 1px;
+    height: 20px;
+    background: var(--dhx-line);
+    margin: 0 6px;
+    flex: none;
+}
+
+/* Flexible push spacer */
+.dhx_spacer { flex: 1 1 auto; }
+
+/* Bottom status bar */
+.dhx_footer {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    height: 32px;
+    padding: 0 18px;
+    background: #fff;
+    border-top: 1px solid var(--dhx-line);
+    box-sizing: border-box;
+    font: 500 12px var(--dhx-font);
+    color: var(--dhx-muted);
+}
+.dhx_footer__right { margin-left: auto; }
+
+
+/* -- 13. Brand / project selector ---------------------------------------------- */
+/* The whole clickable brand block (logo + title + chevron) */
+.dhx_brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+    border: 1px solid var(--dhx-line);
+    border-radius: var(--dhx-radius);
+    padding: 6px 12px 6px 8px;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color .12s, box-shadow .12s, background .12s;
+}
+.dhx_brand:hover { border-color: #bcd3fb; background: #f7f9fb; }
+.dhx_dd.open .dhx_brand {
+    border-color: var(--dhx-accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+
+/* Colored square badge with initials */
+.dhx_brand__logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.25);
+    color: #fff;
+    font: 700 13px var(--dhx-font);
+    letter-spacing: .3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+}
+
+/* Transparent button that wraps logo + text (no own styling) */
+.dhx_brand__btn {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    min-width: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+    transition: none;
+}
+.dhx_brand__btn:hover,
+.dhx_brand__btn:focus-visible { background: none; outline: none; }
+
+.dhx_brand__titles {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 1px;
+}
+
+.dhx_brand__title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.dhx_brand__title {
+    font: 600 15px var(--dhx-font);
+    color: var(--dhx-ink);
+    letter-spacing: -.1px;
+    line-height: 1.15;
+}
+
+.dhx_brand__meta  { display: flex; align-items: center; gap: 0; }
+
+.dhx_brand__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font: 500 12px var(--dhx-font);
+}
+.dhx_brand__status i {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+}
+
+.dhx_brand__subtitle {
+    font: 12px var(--dhx-font);
+    color: var(--dhx-muted);
+}
+.dhx_brand__subtitle::before { content: " · "; color: var(--dhx-muted); }
+
+/* Rich project-picker items inside the dropdown menu */
+.dhx_menu__item--project { align-items: flex-start !important; }
+.dhx_menu__item--project::before { display: none !important; }
+
+.dhx_menu__project-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    color: #fff;
+    font: 700 11px var(--dhx-font);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    margin-top: 2px;
+}
+
+.dhx_menu__project-info { flex: 1; min-width: 0; }
+.dhx_menu__project-title { font: 500 13px var(--dhx-font); color: var(--dhx-ink); }
+.dhx_menu__project-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font: 12px var(--dhx-font);
+    color: var(--dhx-muted);
+    margin-top: 2px;
+}
+.dhx_menu__project-meta i {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+}
+
+.dhx_menu__project-check {
+    font-weight: 700;
+    color: var(--dhx-accent);
+    visibility: hidden;
+    flex: none;
+    margin-top: 2px;
+}
+.dhx_menu__item--project.checked .dhx_menu__project-check { visibility: visible; }
+
+#project_menu { min-width: 250px; top: calc(100% + 4px); }
+
+
+/* -- 14. Resource panel trigger & menu ----------------------------------------- */
+/* Blue-tinted trigger button for the resource panel dropdown */
+.dhx_res_btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid #d7e2f1;
+    border-radius: var(--dhx-radius);
+    background: #fff;
+    color: #005bd3;
+    font: 500 13px var(--dhx-font);
+    cursor: pointer;
+    user-select: none;
+    transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.dhx_res_btn:hover  { background: #f8fbff; border-color: #bcd3fb; }
+.dhx_res_btn.active {
+    background: #eef5ff;
+    border-color: #bcd3fb;
+}
+.dhx_res_btn.active:hover { background: #e7f0ff; border-color: #9fc2fb; }
+.dhx_res_btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.16); }
+.dhx_res_btn b    { color: #004fb8; font-weight: 500; }
+.dhx_res_btn .dhx_ic { width: 14px; height: 14px; }
+
+/* Wider, padded dropdown menu for resource panel options */
+.dhx_res_menu {
+    min-width: 248px;
+    top: 40px;
+    padding: 10px;
+    border-radius: 12px;
+}
+.dhx_res_menu .dhx_menu__label {
+    padding: 6px 8px 7px;
+    font-size: 10px;
+    letter-spacing: .7px;
+}
+.dhx_res_menu .dhx_menu__item {
+    min-height: 36px;
+    padding: 0 34px 0 8px;
+    border-radius: 8px;
+    color: var(--dhx-ink);
+    gap: 9px;
+    position: relative;
+}
+.dhx_res_menu .dhx_menu__item:hover,
+.dhx_res_menu .dhx_menu__item.active { background: #eef4ff; color: #005bd3; }
+
+/* Checkmark moved to ::after (right edge); no left placeholder needed */
+.dhx_res_menu .dhx_menu__item--check::before { content: none; }
+.dhx_res_menu .dhx_menu__item.checked::after {
+    content: "\2713";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #0b63ce;
+    font-weight: 700;
+}
+
+/* Icon slot inside a resource-menu item */
+.dhx_res_menu__icon {
+    width: 14px;
+    text-align: center;
+    color: var(--dhx-ink-2);
+    font-size: 13px;
+    line-height: 1;
+}
+.dhx_res_menu .dhx_menu__item.active .dhx_res_menu__icon,
+.dhx_res_menu .dhx_menu__item:hover  .dhx_res_menu__icon { color: #005bd3; }
+
+
+/* -- 15. Sub-toolbar ----------------------------------------------------------- */
+/* Secondary filter bar shown below the main toolbar (e.g. resource type toggles
+   in the Resources view of 01_advanced.html). */
+.dhx_sub_toolbar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    background: #fafbfc;
+    border-bottom: 1px solid var(--dhx-line-2);
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+.dhx_sub_toolbar.visible { display: flex; }
+
+.dhx_sub_toolbar__label {
+    font: 500 13px var(--dhx-font);
+    color: var(--dhx-muted);
+    margin-right: 4px;
+    flex: none;
+}
+
+/* -- 16. Number inputs & metric badges ---------------------------------------- */
+.dhx_number {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    border: 1px solid var(--dhx-line);
+    border-radius: var(--dhx-radius);
+    background: #fff;
+    transition: border-color .12s, box-shadow .12s;
+}
+.dhx_number:focus-within,
+.dhx_dd.open .dhx_number {
+    border-color: var(--dhx-accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+.dhx_number.error {
+    border-color: #e5484d;
+    box-shadow: 0 0 0 3px rgba(229,72,77,.14);
+}
+.dhx_number__label {
+    font: 500 12px var(--dhx-font);
+    color: var(--dhx-muted);
+    padding: 0 0 0 11px;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+.dhx_number__input {
+    width: 70px;
+    border: none;
+    outline: none;
+    font: 500 13px var(--dhx-font);
+    color: var(--dhx-ink);
+    background: transparent;
+    padding: 0 4px 0 6px;
+    text-align: right;
+}
+.dhx_number__arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--dhx-muted);
+    padding: 0;
+    border-left: 1px solid var(--dhx-line);
+    border-radius: 0 calc(var(--dhx-radius) - 1px) calc(var(--dhx-radius) - 1px) 0;
+    transition: background .1s, color .1s;
+}
+.dhx_number__arrow:hover { background: #f2f4f7; color: var(--dhx-ink); }
+.dhx_number__arrow .dhx_ic { width: 12px; height: 12px; stroke-width: 2; }
+.dhx_number_menu {
+    top: calc(100% + 4px);
+    min-width: 100%;
+    padding: 5px;
+}
+.dhx_number_menu .dhx_menu__item {
+    padding: 7px 10px;
+    white-space: nowrap;
+}
+.dhx_number_menu .dhx_menu__item.checked::before { content: none; }
+.dhx_number_menu .dhx_menu__item.active,
+.dhx_number_menu .dhx_menu__item.checked {
+    color: var(--dhx-accent);
+    font-weight: 600;
+}
+.dhx_form_error {
+    font: 500 12px var(--dhx-font);
+    color: #c62828;
+    min-width: 180px;
+}
+.dhx_form_error:empty { display: none; }
+.dhx_metric_badge {
+    white-space: nowrap;
+    font: 500 12px var(--dhx-font);
+    color: var(--dhx-muted);
+}
+.dhx_metric_badge strong {
+    color: var(--dhx-ink);
+    font-weight: 600;
+}
+.dhx_demo_hint {
+    color: var(--dhx-ink-2);
+    font: 600 13px/1.35 var(--dhx-font);
+    white-space: nowrap;
+}
+.dhx_btn--surface {
+    border-color: var(--dhx-line);
+    background: #fff;
+}
+.dhx_hidden { display: none !important; }
+.dhx_menu__item--danger { color: #e5484d; }
+
+
+/* -- 17. Dark theme ------------------------------------------------------------ */
+/* Toggle by adding body.dhx_dark; all variables and components adapt. */
+body.dhx_dark {
+    --dhx-ink:        #e7eaee;
+    --dhx-ink-2:      #b8c0cc;
+    --dhx-muted:      #7d8896;
+    --dhx-line:       #2a2f37;
+    --dhx-line-2:     #242931;
+    --dhx-bg:         #15181d;
+    --dhx-accent:     #3b82f6;
+    --dhx-accent-soft:#1e2a44;
+}
+
+body.dhx_dark .dhx_header,
+body.dhx_dark .dhx_toolbar,
+body.dhx_dark .dhx_footer     { background: #1b1f26; border-color: var(--dhx-line); }
+
+body.dhx_dark .dhx_brand__title { color: var(--dhx-ink); }
+body.dhx_dark .dhx_brand       { background: #242a33; border-color: var(--dhx-line); }
+body.dhx_dark .dhx_brand:hover { background: #2a313b; border-color: #2f3947; }
+
+body.dhx_dark .dhx_seg,
+body.dhx_dark .dhx_tabs                            { background: #242a33; }
+body.dhx_dark .dhx_seg  .dhx_btn.active,
+body.dhx_dark .dhx_tabs .dhx_btn.active            { background: #323a45; color: #fff; }
+body.dhx_dark .dhx_btn:hover                       { background: #242a33; color: var(--dhx-ink); }
+
+body.dhx_dark .dhx_search                          { background: #242a33; border-color: var(--dhx-line); }
+body.dhx_dark .dhx_search input                    { color: var(--dhx-ink); }
+body.dhx_dark .dhx_number,
+body.dhx_dark .dhx_btn--surface                    { background: #242a33; border-color: var(--dhx-line); }
+body.dhx_dark .dhx_number__input                   { color: var(--dhx-ink); }
+body.dhx_dark .dhx_number__arrow                   { border-color: var(--dhx-line); }
+body.dhx_dark .dhx_number__arrow:hover             { background: #2a313b; color: var(--dhx-ink); }
+
+body.dhx_dark .dhx_menu                            { background: #1f242c; border-color: var(--dhx-line); }
+body.dhx_dark .dhx_menu__item:hover                { background: #2a313b; color: var(--dhx-ink); }
+
+body.dhx_dark .dhx_toggle                          { background: #242a33; border-color: var(--dhx-line); color: var(--dhx-ink); }
+body.dhx_dark .dhx_toggle:hover                    { background: #2a313b; border-color: #2f3947; }
+body.dhx_dark .dhx_toggle.active                   { background: #1e2a44; border-color: #2d4d82; color: #9fc4ff; }
+body.dhx_dark .dhx_toggle.active:hover             { background: #25324a; border-color: #3b5f99; }
+
+body.dhx_dark .dhx_res_btn                         { background: #242a33; border-color: var(--dhx-line); color: #77adff; }
+body.dhx_dark .dhx_res_btn:hover                   { background: #2a313b; border-color: #2f3947; }
+body.dhx_dark .dhx_res_btn.active                  { background: #1e2a44; border-color: #2d4d82; color: #77adff; }
+body.dhx_dark .dhx_res_btn.active:hover            { background: #25324a; border-color: #3b5f99; }
+body.dhx_dark .dhx_res_btn b                       { color: #9fc4ff; }
+
+body.dhx_dark .dhx_res_menu .dhx_menu__item        { color: var(--dhx-ink); }
+body.dhx_dark .dhx_res_menu .dhx_menu__item:hover,
+body.dhx_dark .dhx_res_menu .dhx_menu__item.active { background: #25324a; color: #9fc4ff; }
+
+body.dhx_dark .dhx_chip                            { border-color: #1b1f26; }
+body.dhx_dark .dhx_demo_hint                       { color: var(--dhx-ink-2); }

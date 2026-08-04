@@ -1,13 +1,13 @@
 # DHTMLX Gantt - JavaScript Gantt Chart (Community Edition)
 
-[![npm: v.10.0.0](https://img.shields.io/badge/npm-v.10.0.0-blue.svg)](https://www.npmjs.com/package/dhtmlx-gantt) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md) · [![made by DHTMLX](https://img.shields.io/badge/made%20by-DHTMLX-blue)](https://dhtmlx.com/)
+[![npm: v.10.0.1](https://img.shields.io/badge/npm-v.10.0.1-blue.svg)](https://www.npmjs.com/package/dhtmlx-gantt) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md) · [![made by DHTMLX](https://img.shields.io/badge/made%20by-DHTMLX-blue)](https://dhtmlx.com/)
 
 ![](dhtmlx_logo.svg)
 
 
 [Quick start](#quick-start) | [Build from source](#build-from-source) | [Features](#features) | [Community vs PRO](#community-vs-pro) | [Frameworks](#framework-integration) | [License](#license) | [Links](#useful-links)
 
-`dhtmlx-gantt` is an open-source JavaScript Gantt chart library for visualizing and managing project schedules: a configurable task grid, a zoomable timeline, projects and milestones, four dependency link types, drag-and-drop scheduling, data export, and 32 built-in locales.
+DHTMLX Gantt Community Edition. Open-source JavaScript Gantt chart for project scheduling, timelines, task dependencies, and drag-and-drop editing.
 
 It is a framework-agnostic component that works with plain JavaScript and integrates with React, Angular, Vue, and Svelte.
 

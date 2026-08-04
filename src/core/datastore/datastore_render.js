@@ -125,8 +125,11 @@ const storeRenderCreator = function(name, gantt){
 			store.callEvent("onBeforeRefreshAll", []);
 			store.callEvent("onAfterRefreshAll", []);
 		}else{
-			store.callEvent("onBeforeRefreshItem", [item.id]);
-			store.callEvent("onAfterRefreshItem", [item.id]);
+			// GS-3535. `id` is the key the store applied the change to, `item` is whatever the
+			// caller passed: updateItem(id, {prop: value}) is a documented form and its partial
+			// object carries no id of its own, which used to repaint getItem(undefined)
+			store.callEvent("onBeforeRefreshItem", [id]);
+			store.callEvent("onAfterRefreshItem", [id]);
 		}
 	});
 

@@ -77,15 +77,19 @@ DataStore.prototype = {
 	updateItem: function(id, item){
 		if (!utils.defined(item)) item = this.getItem(id);
 
+		// GS-3535. The events report the `id` argument rather than `item.id`: updateItem also
+		// accepts a partial object - `store.updateItem(id, {prop: value})` - which carries no id
+		// of its own, and such an update used to be announced as `undefined`. `id` is the key the
+		// update is applied to below, so it is the correct one in every form of the call
 		if (!this.isSilent()) {
-			if (this.callEvent("onBeforeUpdate", [item.id, item]) === false) return false;
+			if (this.callEvent("onBeforeUpdate", [id, item]) === false) return false;
 		}
 		// This is how it worked before updating the properties:
 		// this.pull[id]=item;
 		utils.mixin(this.pull[id],item, true);
 		if (!this.isSilent()) {
-			this.callEvent("onAfterUpdate", [item.id, item]);
-			this.callEvent("onStoreUpdated", [item.id, item, "update"]);
+			this.callEvent("onAfterUpdate", [id, item]);
+			this.callEvent("onStoreUpdated", [id, item, "update"]);
 		}
 	},
 

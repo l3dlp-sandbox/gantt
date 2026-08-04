@@ -1,4 +1,5 @@
-type DurationUnits = "minute" | "hour" | "day" | "week" | "month" | "year";
+import type { Scale, TimeUnit } from "./scale_types";
+
 type Align = "left" | "center" | "right";
 type SectionType = "textarea"
 					| "time"
@@ -40,14 +41,6 @@ interface IColumnItem {
 }
 
 export type TModifierKeys = "metaKey" | "ctrlKey" | "altKey" | "shiftKey" | false | undefined;
-
-export interface IScale {
-	css?: () => string;
-	date?: string;
-	step: number;
-	template?: (date: Date) => string;
-	unit: DurationUnits;
-}
 
 interface ILightboxSection {
 	name: string;
@@ -193,7 +186,7 @@ export interface IGanttConfig {
 		[typeName: string]: string | number | undefined
 	};
 	auto_types: boolean;
-	duration_unit: DurationUnits;
+	duration_unit: TimeUnit;
 	work_time: boolean;
 	correct_work_time: boolean;
 	deadlines: boolean;
@@ -251,7 +244,7 @@ export interface IGanttConfig {
 	columns: IColumnItem[];
 
 	/* scale*/
-	scales: IScale[];
+	scales: Scale[];
 
 	scale_offset_minimal: boolean;
 

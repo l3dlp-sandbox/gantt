@@ -7180,6 +7180,11 @@ export interface ZoomLevel {
 	name: string
 
 	/**
+	 * an optional caption of the level for zoom controls. Not used by the chart itself
+	*/
+	label?: string
+
+	/**
 	 * the height of the scale
 	*/
 	scale_height?: number
