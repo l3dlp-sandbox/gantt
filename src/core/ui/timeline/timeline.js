@@ -437,6 +437,15 @@ Timeline.prototype = {
 			css = globalTemplates.scale_cell_class;
 		}
 
+		// GS-1188: sticky labels keep the value of a long cell inside the viewport.
+		// Their offsets are relative to the current scroll position, and only smart scales
+		// re-render the scale on scroll (see _refreshScales). With smart_scales disabled the whole
+		// scale is rendered once, so viewport-relative offsets would freeze and hide the labels (GS-3393)
+		const stickyLabels = !!globalConfig.smart_scales;
+		const stickyConfig = (globalConfig.scales[index] || {}).sticky; // for old scale settings
+		const viewPort = stickyLabels ? this.getViewPort() : null;
+		const approxLabelWidth = 70;
+
 		for (var i = startIndex; i < endIndex; i++) {
 			if (!config.trace_x[i]) break;
 
@@ -453,15 +462,11 @@ Timeline.prototype = {
 				var position = globalConfig.smart_scales ? ("position:absolute;left:" + left + "px") : "";
 
 				style = "width:" + (width) + "px;" + position;
-				// GS-1188: Display the scale value in the viewport for long cells
-				const viewPort = this.getViewPort();
-				const floatConfig = (globalConfig.scales[index] || {}).sticky; // for old scale settings
 
 				let labelPosition = '';
-				const approxLabelWidth = 70;
 				// if sticky config is not specified - sticky labels are enabled for long cells only
-				if ((floatConfig !== false && width > approxLabelWidth) || floatConfig === true) {
-					
+				if (stickyLabels && ((stickyConfig !== false && width > approxLabelWidth) || stickyConfig === true)) {
+
 					if (left < viewPort.x && left + width/2 - approxLabelWidth/2 < viewPort.x){
 						labelPosition = ` style='position:absolute;left: ${viewPort.x  - left + 10}px;' `;
 					} else if(left + width/2 + approxLabelWidth/2 > viewPort.x_end && width > approxLabelWidth){

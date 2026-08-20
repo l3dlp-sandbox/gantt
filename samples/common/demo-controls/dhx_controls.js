@@ -7,6 +7,7 @@
  *   DHX.toggle   -- toggle-switch UI helper
  *   DHX.zoom     -- segmented zoom control synced to gantt.ext.zoom
  *   DHX.search   -- recursive task-name search helper
+ *   DHX.tip      -- themed replacement for the browser's title tooltip
  *
  * Usage: load this file BEFORE the demo's own <script> block.
  * ============================================================================= */
@@ -267,6 +268,83 @@
         }
     };
 
-    global.DHX = { dd: dd, toggle: toggle, zoom: zoom, search: search, numberPicker: numberPicker, ui: ui };
+    // -----------------------------------------------------------------------------
+    // Tooltip
+    // -----------------------------------------------------------------------------
+    // Draws a themed .dhx_tip in place of the tooltip a browser gives a title
+    // attribute. Demos keep writing plain titles: the title moves to data-dhx-tip
+    // on first hover, and into aria-label to keep the accessible name.
+
+    var tip = {
+        el: null,
+        timer: null,
+        delay: 400,
+
+        /* Wire the document-level handlers. Safe to call more than once. */
+        init: function () {
+            if (tip.el) return;
+            tip.el = document.createElement("div");
+            tip.el.className = "dhx_tip";
+            document.body.appendChild(tip.el);
+
+            document.addEventListener("mouseover", function (e) {
+                var host = e.target.closest ? e.target.closest("[title], [data-dhx-tip]") : null;
+                if (!host) return;
+
+                var title = host.getAttribute("title");
+                if (title) {
+                    host.setAttribute("data-dhx-tip", title);
+                    if (!host.getAttribute("aria-label")) host.setAttribute("aria-label", title);
+                    host.removeAttribute("title");
+                }
+
+                var text = host.getAttribute("data-dhx-tip");
+                if (text) tip.show(host, text);
+            });
+
+            document.addEventListener("mouseout", function (e) {
+                var host = e.target.closest ? e.target.closest("[data-dhx-tip]") : null;
+                if (host) tip.hide();
+            });
+
+            // Captured: the gantt grid and timeline scroll in their own panes.
+            document.addEventListener("scroll", tip.hide, true);
+            document.addEventListener("mousedown", tip.hide, true);
+        },
+
+        /* Show the tip under host after the hover delay, clamped to the viewport. */
+        show: function (host, text) {
+            clearTimeout(tip.timer);
+            tip.timer = setTimeout(function () {
+                tip.el.textContent = text;
+                tip.el.classList.add("on");
+
+                var at = host.getBoundingClientRect();
+                var box = tip.el.getBoundingClientRect();
+                var left = at.left + (at.width - box.width) / 2;
+                var top = at.bottom + 6;
+
+                if (left < 4) left = 4;
+                if (left + box.width > innerWidth - 4) left = innerWidth - box.width - 4;
+                if (top + box.height > innerHeight - 4) top = at.top - box.height - 6;
+
+                tip.el.style.left = Math.round(left) + "px";
+                tip.el.style.top = Math.round(top) + "px";
+            }, tip.delay);
+        },
+
+        hide: function () {
+            clearTimeout(tip.timer);
+            if (tip.el) tip.el.classList.remove("on");
+        }
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", tip.init);
+    } else {
+        tip.init();
+    }
+
+    global.DHX = { dd: dd, toggle: toggle, zoom: zoom, search: search, numberPicker: numberPicker, ui: ui, tip: tip };
 
 }(window));

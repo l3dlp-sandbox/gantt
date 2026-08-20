@@ -1,3 +1,10 @@
+### 10.0.2
+
+- Fix the issue where the tasks were sorted by their ids instead of keeping the loading order after the grouping was applied or reset - this also affected React Gantt, Angular Gantt, and Vue Gantt, where replacing the data collection or adding tasks to it re-sorted the rest of the tasks by id
+- Fix the issue where the timeline scale cells were rendered empty after changing the zoom level or scrolling the timeline when the smart_scales config was disabled
+- Fix the issue where the exported PDF/PNG chart lost the scale labels of the cells located to the left of the visible timeline area
+- Fix the issue where Auto Scheduling added an incorrect lag to links between nested sub-projects after a subtask was dragged, and repeated autoSchedule() calls could not remove it
+
 ### 10.0.1
 
 - Fix the issue in React Gantt, Vue Gantt, and Angular Gantt where the zoom levels of the config.zoom property - and of the useZoom hook in React - were not applied to the chart when they changed after the initial render

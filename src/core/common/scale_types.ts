@@ -43,7 +43,10 @@ export interface Scale {
 	/** Units per column. Default 1. */
 	step?: number;
 
-	/** Keeps the scale label visible while the cell is larger than the viewport. */
+	/**
+	 * Keeps the scale label visible while the cell is larger than the viewport.
+	 * Requires the `smart_scales` config, since the label position is recalculated on scroll.
+	 */
 	sticky?: boolean;
 
 	/** Label format — a strftime-style pattern or a formatter function. */

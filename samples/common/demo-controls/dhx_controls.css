@@ -6,7 +6,7 @@
  *   2.  Page base
  *   3.  Icons
  *   4.  Buttons
- *   5.  Segmented controls & tabs
+ *   5.  Segmented controls, tabs & steppers
  *   6.  Dropdown system
  *   7.  Search input
  *   8.  Toggle switch
@@ -18,7 +18,8 @@
  *  14.  Resource panel trigger & menu
  *  15.  Sub-toolbar (secondary filter bar)
  *  16.  Number inputs & metric badges
- *  17.  Dark theme overrides  (body.dhx_dark)
+ *  17.  Tooltip
+ *  18.  Dark theme overrides  (:root[data-gantt-theme="dark"])
  * ============================================================================= */
 
 /* -- 1. Design tokens ---------------------------------------------------------- */
@@ -26,7 +27,7 @@
     --dhx-font:         "Inter", Roboto, -apple-system, "Segoe UI", Arial, sans-serif;
 
     /* text */
-    --dhx-ink:          #1f2630;
+    --dhx-ink:          var(--dhx-gantt-base-colors-text-base, #1f2630);
     --dhx-ink-2:        #4a5560;
     --dhx-muted:        #8a94a0;
 
@@ -35,8 +36,42 @@
     --dhx-line-2:       #eef1f4;
     --dhx-bg:           #f4f5f7;
 
+    /* Surfaces that sit above the page background: a card or an input, the same
+       card under the cursor, and a panel that frames a whole area. Both themes
+       define all three, so a demo styles a surface once and never repeats it
+       under the dark selector. */
+    --dhx-surface:      #ffffff;
+    --dhx-surface-2:    #f2f4f7;
+    --dhx-panel:        #ffffff;
+    /* A floating surface: a menu, a popup, a toast. It sits above everything
+       else, so in the dark theme it is lifted away from the panel behind it. */
+    --dhx-overlay:      #ffffff;
+
+    /* State colors. Each state is a soft background plus the text that reads on
+       it, which is the badge and chip pattern every demo needs: on track, at
+       risk, blocked, actionable, and the neutral one that carries no meaning.
+       These are for status, not for data: bar fills, owner colors and chart
+       lines stay written out in the demo that owns them. */
+    --dhx-ok-bg:        #e8f6ee;
+    --dhx-ok-ink:       #1f8a4c;
+    --dhx-ok-line:      #bbf7d0;
+    --dhx-warn-bg:      #fff4e0;
+    --dhx-warn-ink:     #b8740a;
+    --dhx-warn-line:    #fde68a;
+    --dhx-danger-bg:    #fdecec;
+    --dhx-danger-ink:   #c0392b;
+    --dhx-danger-line:  #fecaca;
+    /* Danger with nothing behind it: a delete icon or a destructive menu item,
+       where the red is the whole signal and has to carry on its own. */
+    --dhx-danger-solid: #e5484d;
+    --dhx-info-bg:      #eaf1fe;
+    --dhx-info-ink:     #2563eb;
+    --dhx-info-line:    #d6e4fb;
+    --dhx-neutral-bg:   #eef1f4;
+    --dhx-neutral-ink:  #64748b;
+
     /* brand */
-    --dhx-accent:       #2563eb;
+    --dhx-accent:       var(--dhx-gantt-base-colors-primary, #2563eb);
     --dhx-accent-soft:  #eaf1fe;
 
     /* shape */
@@ -80,7 +115,8 @@ html, body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    height: 32px;
+    height: 34px;
+    box-sizing: border-box;
     padding: 0 11px;
     border: 1px solid transparent;
     border-radius: var(--dhx-radius);
@@ -120,7 +156,7 @@ html, body {
 .dhx_btn--primary:active { background: #1a45c0; }
 
 
-/* -- 5. Segmented controls & tabs ---------------------------------------------- */
+/* -- 5. Segmented controls, tabs & steppers ------------------------------------ */
 /* Both .dhx_seg (inline segmented) and .dhx_tabs (view switcher) share the same
    pill container. The active item gets a white card with a subtle shadow. */
 .dhx_seg,
@@ -150,6 +186,16 @@ html, body {
     box-shadow: 0 1px 2px rgba(16,24,40,.10), 0 1px 3px rgba(16,24,40,.06);
 }
 
+/* A stepper is a row of icon buttons that read as one control, such as a pair
+   of arrows. Only the part every stepper shares lives here: how the buttons
+   line up and what surface they sit on. Spacing and corner rounding say whether
+   the buttons are joined or separate, which is the demo's decision. */
+.dhx_stepper { display: inline-flex; }
+.dhx_stepper .dhx_btn--icon {
+    border: 1px solid var(--dhx-line);
+    background: var(--dhx-surface);
+}
+
 
 /* -- 6. Dropdown system -------------------------------------------------------- */
 .dhx_dd { position: relative; }
@@ -160,7 +206,7 @@ html, body {
     top: 40px;
     left: 0;
     min-width: 210px;
-    background: #fff;
+    background: var(--dhx-overlay);
     border: 1px solid var(--dhx-line);
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(16,24,40,.08), 0 12px 32px rgba(16,24,40,.12);
@@ -219,6 +265,7 @@ html, body {
     align-items: center;
     gap: 7px;
     height: 34px;
+    box-sizing: border-box;
     padding: 0 11px;
     border: 1px solid var(--dhx-line);
     border-radius: var(--dhx-radius);
@@ -248,6 +295,7 @@ html, body {
     align-items: center;
     gap: 8px;
     height: 34px;
+    box-sizing: border-box;
     padding: 0 10px;
     border: 1px solid #d7e2f1;
     border-radius: 7px;
@@ -303,6 +351,7 @@ html, body {
     align-items: center;
     gap: 6px;
     height: 28px;
+    box-sizing: border-box;
     padding: 0 12px;
     border: 1px solid var(--dhx-line);
     border-radius: 7px;
@@ -448,6 +497,21 @@ html, body {
     transition: border-color .12s, box-shadow .12s, background .12s;
 }
 .dhx_brand:hover { border-color: #bcd3fb; background: #f7f9fb; }
+
+/* Same block used as a plain caption, where nothing opens on click. The border
+   stays in place as transparent so the block keeps the height and alignment of
+   the clickable one. */
+.dhx_brand--static,
+.dhx_brand--static:hover {
+    border-color: transparent;
+    background: none;
+    cursor: default;
+}
+.dhx_brand--static {
+    padding-left: 0;
+    padding-right: 0;
+}
+.dhx_brand--static .dhx_brand__btn { cursor: default; }
 .dhx_dd.open .dhx_brand {
     border-color: var(--dhx-accent);
     box-shadow: 0 0 0 3px rgba(37,99,235,.15);
@@ -525,7 +589,8 @@ html, body {
     font: 12px var(--dhx-font);
     color: var(--dhx-muted);
 }
-.dhx_brand__subtitle::before { content: " · "; color: var(--dhx-muted); }
+/* Separator only when the subtitle actually follows something, e.g. a status */
+.dhx_brand__subtitle:not(:first-child)::before { content: " · "; color: var(--dhx-muted); }
 
 /* Rich project-picker items inside the dropdown menu */
 .dhx_menu__item--project { align-items: flex-start !important; }
@@ -581,6 +646,7 @@ html, body {
     align-items: center;
     gap: 6px;
     height: 34px;
+    box-sizing: border-box;
     padding: 0 12px;
     border: 1px solid #d7e2f1;
     border-radius: var(--dhx-radius);
@@ -676,7 +742,8 @@ html, body {
     position: relative;
     display: inline-flex;
     align-items: center;
-    height: 36px;
+    height: 34px;
+    box-sizing: border-box;
     border: 1px solid var(--dhx-line);
     border-radius: var(--dhx-radius);
     background: #fff;
@@ -766,61 +833,123 @@ html, body {
     background: #fff;
 }
 .dhx_hidden { display: none !important; }
-.dhx_menu__item--danger { color: #e5484d; }
+.dhx_menu__item--danger { color: var(--dhx-danger-solid); }
+.dhx_btn.dhx_menu__item--danger:hover,
+.dhx_menu__item.dhx_menu__item--danger:hover { color: var(--dhx-danger-solid); }
 
 
-/* -- 17. Dark theme ------------------------------------------------------------ */
-/* Toggle by adding body.dhx_dark; all variables and components adapt. */
-body.dhx_dark {
-    --dhx-ink:        #e7eaee;
+/* -- 17. Tooltip --------------------------------------------------------------- */
+/* Replaces the tooltip the browser draws for a title attribute, which is chrome
+   UI: it follows the OS theme, not the page, so it stays white on a dark demo.
+   DHX.tip takes the title over; nothing in a demo has to change. */
+.dhx_tip {
+    position: fixed;
+    z-index: 200;
+    max-width: 260px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: var(--dhx-ink);
+    color: #fff;
+    font: 500 12px/1.35 var(--dhx-font);
+    box-shadow: 0 2px 6px rgba(16,24,40,.18), 0 6px 16px rgba(16,24,40,.14);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .1s;
+}
+.dhx_tip.on { opacity: 1; }
+
+
+/* -- 18. Dark theme ------------------------------------------------------------ */
+/* Keyed on the attribute Gantt itself writes on <html> when the skin changes,
+   so gantt.setSkin("dark") re-themes the demo chrome along with the chart. It
+   also means a demo embedded elsewhere follows its host's color mode without
+   any extra wiring: setting the attribute is all it takes. */
+:root[data-gantt-theme="dark"] {
     --dhx-ink-2:      #b8c0cc;
     --dhx-muted:      #7d8896;
     --dhx-line:       #2a2f37;
     --dhx-line-2:     #242931;
     --dhx-bg:         #15181d;
-    --dhx-accent:     #3b82f6;
     --dhx-accent-soft:#1e2a44;
+
+    --dhx-surface:    #242a33;
+    --dhx-surface-2:  #2a313b;
+    --dhx-panel:      #1b1f26;
+    --dhx-overlay:    #1f242c;
+
+    --dhx-ok-bg:      #1d3326;
+    --dhx-ok-ink:     #69d391;
+    --dhx-ok-line:    #2c5039;
+    --dhx-warn-bg:    #3a3020;
+    --dhx-warn-ink:   #f0b760;
+    --dhx-warn-line:  #5c4820;
+    --dhx-danger-bg:  #3a2226;
+    --dhx-danger-ink: #ff7a7f;
+    --dhx-danger-line:#5c2f33;
+    --dhx-danger-solid:#ff6b6e;
+    --dhx-info-bg:    #1e2a44;
+    --dhx-info-ink:   #77adff;
+    --dhx-info-line:  #2d4d82;
+    --dhx-neutral-bg: #2a313b;
+    --dhx-neutral-ink:#aeb7c2;
+
+    --dhx-gantt-tooltip-background: #1b1f26;
+    --dhx-gantt-tooltip-color:      var(--dhx-ink);
+    --dhx-gantt-tooltip-border:     1px solid var(--dhx-line);
 }
 
-body.dhx_dark .dhx_header,
-body.dhx_dark .dhx_toolbar,
-body.dhx_dark .dhx_footer     { background: #1b1f26; border-color: var(--dhx-line); }
+:root[data-gantt-theme="dark"] .dhx_header,
+:root[data-gantt-theme="dark"] .dhx_toolbar,
+:root[data-gantt-theme="dark"] .dhx_footer     { background: #1b1f26; border-color: var(--dhx-line); }
 
-body.dhx_dark .dhx_brand__title { color: var(--dhx-ink); }
-body.dhx_dark .dhx_brand       { background: #242a33; border-color: var(--dhx-line); }
-body.dhx_dark .dhx_brand:hover { background: #2a313b; border-color: #2f3947; }
+:root[data-gantt-theme="dark"] .dhx_brand__title { color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_brand       { background: #242a33; border-color: var(--dhx-line); }
+:root[data-gantt-theme="dark"] .dhx_brand:hover { background: #2a313b; border-color: #2f3947; }
+:root[data-gantt-theme="dark"] .dhx_brand--static,
+:root[data-gantt-theme="dark"] .dhx_brand--static:hover { background: none; border-color: transparent; }
 
-body.dhx_dark .dhx_seg,
-body.dhx_dark .dhx_tabs                            { background: #242a33; }
-body.dhx_dark .dhx_seg  .dhx_btn.active,
-body.dhx_dark .dhx_tabs .dhx_btn.active            { background: #323a45; color: #fff; }
-body.dhx_dark .dhx_btn:hover                       { background: #242a33; color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_seg,
+:root[data-gantt-theme="dark"] .dhx_tabs                            { background: #242a33; }
+:root[data-gantt-theme="dark"] .dhx_seg  .dhx_btn.active,
+:root[data-gantt-theme="dark"] .dhx_tabs .dhx_btn.active            { background: #5a6475; color: #fff; }
+:root[data-gantt-theme="dark"] .dhx_btn:not(.dhx_btn--primary):hover { background: #2a313b; color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_seg  .dhx_btn:hover,
+:root[data-gantt-theme="dark"] .dhx_tabs .dhx_btn:hover             { background: rgba(255,255,255,.06); }
+:root[data-gantt-theme="dark"] .dhx_seg  .dhx_btn.active:hover,
+:root[data-gantt-theme="dark"] .dhx_tabs .dhx_btn.active:hover      { background: #656f81; }
+:root[data-gantt-theme="dark"] .dhx_btn--surface:hover              { background: #2f3846; border-color: #2f3947; }
 
-body.dhx_dark .dhx_search                          { background: #242a33; border-color: var(--dhx-line); }
-body.dhx_dark .dhx_search input                    { color: var(--dhx-ink); }
-body.dhx_dark .dhx_number,
-body.dhx_dark .dhx_btn--surface                    { background: #242a33; border-color: var(--dhx-line); }
-body.dhx_dark .dhx_number__input                   { color: var(--dhx-ink); }
-body.dhx_dark .dhx_number__arrow                   { border-color: var(--dhx-line); }
-body.dhx_dark .dhx_number__arrow:hover             { background: #2a313b; color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_search                          { background: #242a33; border-color: var(--dhx-line); }
+:root[data-gantt-theme="dark"] .dhx_search input                    { color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_number,
+:root[data-gantt-theme="dark"] .dhx_btn--surface                    { background: #242a33; border-color: var(--dhx-line); }
+:root[data-gantt-theme="dark"] .dhx_number__input                   { color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_number__arrow                   { border-color: var(--dhx-line); }
+:root[data-gantt-theme="dark"] .dhx_number__arrow:hover             { background: #2a313b; color: var(--dhx-ink); }
 
-body.dhx_dark .dhx_menu                            { background: #1f242c; border-color: var(--dhx-line); }
-body.dhx_dark .dhx_menu__item:hover                { background: #2a313b; color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_menu__item:hover                { background: #2a313b; color: var(--dhx-ink); }
 
-body.dhx_dark .dhx_toggle                          { background: #242a33; border-color: var(--dhx-line); color: var(--dhx-ink); }
-body.dhx_dark .dhx_toggle:hover                    { background: #2a313b; border-color: #2f3947; }
-body.dhx_dark .dhx_toggle.active                   { background: #1e2a44; border-color: #2d4d82; color: #9fc4ff; }
-body.dhx_dark .dhx_toggle.active:hover             { background: #25324a; border-color: #3b5f99; }
+:root[data-gantt-theme="dark"] .dhx_toggle                          { background: #242a33; border-color: var(--dhx-line); color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_toggle:hover                    { background: #2a313b; border-color: #2f3947; }
+:root[data-gantt-theme="dark"] .dhx_toggle.active                   { background: #1e2a44; border-color: #2d4d82; color: #9fc4ff; }
+:root[data-gantt-theme="dark"] .dhx_toggle.active:hover             { background: #25324a; border-color: #3b5f99; }
 
-body.dhx_dark .dhx_res_btn                         { background: #242a33; border-color: var(--dhx-line); color: #77adff; }
-body.dhx_dark .dhx_res_btn:hover                   { background: #2a313b; border-color: #2f3947; }
-body.dhx_dark .dhx_res_btn.active                  { background: #1e2a44; border-color: #2d4d82; color: #77adff; }
-body.dhx_dark .dhx_res_btn.active:hover            { background: #25324a; border-color: #3b5f99; }
-body.dhx_dark .dhx_res_btn b                       { color: #9fc4ff; }
+:root[data-gantt-theme="dark"] .dhx_res_btn                         { background: #242a33; border-color: var(--dhx-line); color: #77adff; }
+:root[data-gantt-theme="dark"] .dhx_res_btn:hover                   { background: #2a313b; border-color: #2f3947; }
+:root[data-gantt-theme="dark"] .dhx_res_btn.active                  { background: #1e2a44; border-color: #2d4d82; color: #77adff; }
+:root[data-gantt-theme="dark"] .dhx_res_btn.active:hover            { background: #25324a; border-color: #3b5f99; }
+:root[data-gantt-theme="dark"] .dhx_res_btn b                       { color: #9fc4ff; }
 
-body.dhx_dark .dhx_res_menu .dhx_menu__item        { color: var(--dhx-ink); }
-body.dhx_dark .dhx_res_menu .dhx_menu__item:hover,
-body.dhx_dark .dhx_res_menu .dhx_menu__item.active { background: #25324a; color: #9fc4ff; }
+:root[data-gantt-theme="dark"] .dhx_res_menu .dhx_menu__item        { color: var(--dhx-ink); }
+:root[data-gantt-theme="dark"] .dhx_res_menu .dhx_menu__item:hover,
+:root[data-gantt-theme="dark"] .dhx_res_menu .dhx_menu__item.active { background: #25324a; color: #9fc4ff; }
 
-body.dhx_dark .dhx_chip                            { border-color: #1b1f26; }
-body.dhx_dark .dhx_demo_hint                       { color: var(--dhx-ink-2); }
+:root[data-gantt-theme="dark"] .dhx_tip                             { background: #1b1f26; color: var(--dhx-ink); border: 1px solid var(--dhx-line); }
+
+:root[data-gantt-theme="dark"] .dhx_chip                            { border-color: #1b1f26; }
+:root[data-gantt-theme="dark"] .dhx_demo_hint                       { color: var(--dhx-ink-2); }
+
+/* The off state of a switch is the one light surface left in the toolbar. */
+:root[data-gantt-theme="dark"] .dhx_toggle__track                   { background: #3a424e; }
+:root[data-gantt-theme="dark"] .dhx_toggle__track.on                { background: var(--dhx-accent); }
+:root[data-gantt-theme="dark"] .dhx_toggle__track::after            { background: #d7dce3; }
