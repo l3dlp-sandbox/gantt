@@ -75,9 +75,11 @@ export default function getSameLevelDropPosition(dndTaskId, targetTaskId, relTar
 		}
 	}else{
 		var rootId = store.$getRootId();
-		var rootLevel = store.getChildren(rootId);
+		// GS-477. Only the count is needed; getChildren() would copy the root branch - the
+		// whole chart on a flat one - per drag hit-test.
+		var hasRootLevel = store.hasChild(rootId);
 		result = dropTarget.createDropTargetObject();
-		if(rootLevel.length && eventTop >= 0){
+		if(hasRootLevel && eventTop >= 0){
 			result = findTargetAbove(dndTaskId, getLast(store), level, store);
 		}else{
 			result = findTargetBelow(dndTaskId, rootId, level, store);

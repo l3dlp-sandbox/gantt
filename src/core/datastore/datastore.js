@@ -9,6 +9,11 @@ var DataStore = function(config){
 	this.visibleOrder = powerArray.$create();
 	this.fullOrder = powerArray.$create();
 	this._skip_refresh = false;
+	// GS-3602. Rebuilding the visible order is a pass over every item in the store, so a
+	// change that affects one item must not trigger one per item. See `_requestFilter`.
+	this._deferFilter = 0;
+	this._pendingFilter = false;
+	this._filterInProgress = false;
 	this._filterRule = null;
 	this._searchVisibleOrder = {};
 	this._indexRangeCache = {};
@@ -74,6 +79,49 @@ DataStore.prototype = {
 		code.call(this.visibleOrder);
 		code.call(this.fullOrder);
 	},
+
+	// GS-3602. Recomputing the visible order costs a pass over every item in the store: it
+	// re-evaluates `onFilterItem` for each of them and rebuilds `visibleOrder` and its index.
+	// A single-item add or remove asks for that recomputation, which is why 300 changes on a
+	// 100 000-task chart used to cost 300 full passes.
+	//
+	// While a recomputation is deferred - `batchUpdate` defers it for the duration of its
+	// callback, the same way it already defers `resetProjectDates` - the request is recorded
+	// instead of run, and it happens exactly once: when something reads the visible order
+	// (`_ensureFilter`, called by every reader below) or when the deferral is released.
+	// Nothing observes a stale order, and the events the pass fires are dispatched once for
+	// the whole batch rather than once per change.
+	_requestFilter: function(){
+		if(this._deferFilter > 0){
+			this._pendingFilter = true;
+			return;
+		}
+		this.filter();
+	},
+	_ensureFilter: function(){
+		// A filter pass reads the store through its own handlers, so a reader reached from
+		// inside one must not start a second pass - it sees the same order it would have seen
+		// before this change, the one the running pass is about to replace.
+		if(this._pendingFilter && !this._filterInProgress){
+			this.filter();
+		}
+	},
+	beginDeferFilter: function(){
+		this._deferFilter++;
+	},
+	endDeferFilter: function(){
+		if(this._deferFilter > 0){
+			this._deferFilter--;
+		}
+		if(this._deferFilter === 0){
+			this._flushDeferredFilter();
+		}
+	},
+	// Overridden in TreeDataStore, whose item order is derived from the branch tree and has
+	// to be re-derived together with the visible order.
+	_flushDeferredFilter: function(){
+		this._ensureFilter();
+	},
 	updateItem: function(id, item){
 		if (!utils.defined(item)) item = this.getItem(id);
 
@@ -116,7 +164,7 @@ DataStore.prototype = {
 		}
 
 		if (!this.isSilent()) {
-			this.filter();
+			this._requestFilter();
 			this.callEvent("onAfterDelete", [obj.id, obj]);
 			//repaint signal
 			this.callEvent("onStoreUpdated", [obj.id, obj, "delete"]);
@@ -152,12 +200,13 @@ DataStore.prototype = {
 			if(this.$find(item.id) === -1)
 				this.$insertAt(item.id,index);
 		});
-		this.filter();
+		this._requestFilter();
 		//order.$insertAt(item.id,index);
 	},
 
 
 	isVisible: function(id){
+		this._ensureFilter();
 		return this.visibleOrder.$find(id) > -1;
 	},
 	getVisibleItems: function(){
@@ -251,6 +300,8 @@ DataStore.prototype = {
 		this.pull = {};
 		this.visibleOrder = powerArray.$create();
 		this.fullOrder = powerArray.$create();
+		this._searchVisibleOrder = {};
+		this._getItemsCache = null;
 		if (this.isSilent()) return;
 		this.callEvent("onClearAll",[]);
 		this.refresh();
@@ -288,6 +339,12 @@ DataStore.prototype = {
 			return;
 		}
 		if (this.isSilent()) return;
+
+		// GS-3602. A deferred filter pass is outstanding: this refresh has to recompute the
+		// order rather than take the quick path, which would repaint against a stale one.
+		if(this._pendingFilter){
+			this._mark_recompute = true;
+		}
 
 		var item;
 		if(id){
@@ -334,6 +391,7 @@ DataStore.prototype = {
 		return this.fullOrder.length;
 	},
 	countVisible: function(){
+		this._ensureFilter();
 		return this.visibleOrder.length;
 	},
 
@@ -359,15 +417,41 @@ DataStore.prototype = {
 	},
 
 	filter: function(rule){
+		this._pendingFilter = false;
+		this._filterInProgress = true;
+		var completed = false;
+		try{
+			this._filterInner(rule);
+			completed = true;
+		}finally{
+			this._filterInProgress = false;
+			if(!completed){
+				// GS-3602. The pass threw from one of its own handlers, so `visibleOrder` and the
+				// index built from it are whatever the aborted pass left behind - and the pass is
+				// still owed. Re-arming it makes the next reader run it rather than trust that
+				// state; without this, a handler that throws once leaves the store answering from
+				// a stale index for good. Cleared at the top rather than here, so that a filter
+				// requested *during* the pass still survives it.
+				this._pendingFilter = true;
+			}
+		}
+	},
+
+	_filterInner: function(rule){
 		if (!this.isSilent()) {
 			this.callEvent("onBeforeFilter", []);
 		}
 		this.callEvent("onPreFilter", []);
 		var filteredOrder = powerArray.$create();
 		var placeholderIds = [];
+		// GS-3602. Hoisted out of the per-item `isPlaceholderTask` check. Answered once on
+		// purpose: an `onFilterItem` handler can change `gantt.config`, and switching mid-walk
+		// would classify only part of the items as placeholders.
+		var config = this._ganttConfig;
+		var mayHavePlaceholder = !!(config && config.placeholder_task);
 		this.eachItem(function(item){
 			if(this.callEvent("onFilterItem", [item.id, item])){
-				if(isPlaceholderTask(item.id, null, this, this._ganttConfig)){
+				if(mayHavePlaceholder && isPlaceholderTask(item.id, null, this, config)){
 					placeholderIds.push(item.id);
 				} else {
 					filteredOrder.push(item.id);
@@ -390,6 +474,7 @@ DataStore.prototype = {
 	},
 
 	getIndexRange: function(from, to){
+		this._ensureFilter();
 		var max = Math.min((to||Infinity),this.countVisible()-1);
 		var min = from||0;
 
@@ -420,9 +505,11 @@ DataStore.prototype = {
 	},
 
 	getIdByIndex: function(index){
+		this._ensureFilter();
 		return this.visibleOrder[index];
 	},
 	getIndexById: function(id){
+		this._ensureFilter();
 		var res = this._searchVisibleOrder[id];
 		if(res === undefined){
 			res = -1;
@@ -437,9 +524,11 @@ DataStore.prototype = {
 		}
 	},
 	getFirst: function(){
+		this._ensureFilter();
 		return this._getNullIfUndefined(this.visibleOrder[0]);
 	},
 	getLast: function(){
+		this._ensureFilter();
 		return this._getNullIfUndefined(this.visibleOrder[this.visibleOrder.length-1]);
 	},
 	getNext: function(id){
@@ -460,6 +549,7 @@ DataStore.prototype = {
 		this._filterRule = null;
 		this._searchVisibleOrder = null;
 		this._indexRangeCache = {};
+		this._getItemsCache = null;
 	}
 };
 

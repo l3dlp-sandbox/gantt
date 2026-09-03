@@ -136,7 +136,8 @@ var createTasksDatastoreFacade = function(){
 		return this.$data.tasksStore.setParent(task, new_pid, silent);
 	},
 	getSiblings: function (id) {
-		return this.$data.tasksStore.getSiblings(id).slice();
+		// GS-477. Already a copy - the datastore does not hand out live branch arrays.
+		return this.$data.tasksStore.getSiblings(id);
 	},
 	getNextSibling: function (id) {
 		return this.$data.tasksStore.getNextSibling(id);
@@ -156,7 +157,8 @@ var createTasksDatastoreFacade = function(){
 		if(!this.hasChild(id)){
 			return [];
 		}else{
-			return this.$data.tasksStore.getChildren(id).slice();
+			// GS-477. Already a copy - the datastore does not hand out live branch arrays.
+			return this.$data.tasksStore.getChildren(id);
 		}
 	},
 	hasChild: function (id) {

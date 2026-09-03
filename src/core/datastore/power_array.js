@@ -24,8 +24,23 @@ var $powerArray  = {
 	},
 	//return index of element, -1 if it doesn't exists
 	$find:function(data){
-		for (var i=0; i<this.length; i++)
-			if (data==this[i]) return i;
+		// GS-3602. Matching an id across types is the contract here - a store may hold an id as
+		// a number and be asked for it as a string - but `==` per element is an interpreted,
+		// megamorphic scan over arrays as long as the chart, per visibility check and per
+		// removal. Two strict passes express the same intent and stay inside the engine; on a
+		// chart that uses one id type throughout the second never runs.
+		//
+		// This narrows `==` deliberately: an id held as a non-canonical numeric string ("5.0",
+		// "05", " 5 ") no longer matches the number 5. Ids do not take those forms - they are
+		// `pull` keys, the canonical string of whatever was stored.
+		var strict = this.indexOf(data);
+		if (strict !== -1) return strict;
+
+		if (typeof data === "string") {
+			if (data !== "" && !isNaN(+data)) return this.indexOf(+data);
+		} else if (typeof data === "number") {
+			return this.indexOf(data + "");
+		}
 		return -1;
 	},
 	//execute some method for each element of array

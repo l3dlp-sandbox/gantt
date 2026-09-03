@@ -188,7 +188,8 @@ function _init_dnd(gantt, grid) {
 					}
 					else {
 						if (config.order_branch_free) {
-							if (!(store.isChildOf(item.id, over.id) && store.getChildren(over.id).length == 1))
+							// GS-477. hasChild() is the count; getChildren() now copies the branch.
+							if (!(store.isChildOf(item.id, over.id) && store.hasChild(over.id) == 1))
 								return;
 							else {
 								store.move(item.id, store.getBranchIndex(over.id) + 1, store.getParent(over.id));
@@ -244,7 +245,7 @@ function _init_dnd(gantt, grid) {
 			if (allowedLevel(over, item) && item.id != over.id) {
 				store.move(item.id, 0, 0, over.id);
 
-			} else if (over.$level == item.$level - 1 && !store.getChildren(over.id).length) {
+			} else if (over.$level == item.$level - 1 && !store.hasChild(over.id)) {
 				store.move(item.id, 0, over.id);
 
 			} else if (prev && (allowedLevel(prev, item)) && (item.id != prev.id)) {

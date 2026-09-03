@@ -142,7 +142,13 @@ export default function(gantt) {
 			return startDate;
 		}
 		//GS-3144: consider scale-projection
-		if(gantt.getScale().projection && gantt.getCalendar("timescale-projection-calendar")){
+		//GS-3561: getScale() reports the scale only while the timeline is visible, and it is null
+		//otherwise. A hidden timeline keeps the projection and the projection calendar of its last
+		//visible render - it recomputes neither - so they can describe a configuration that is no
+		//longer set. Snapping the date the user typed with an obsolete projection is worse than not
+		//snapping it, so the projection is applied only while the scale behind it is up to date.
+		const scale = gantt.getScale();
+		if(scale && scale.projection && gantt.getCalendar("timescale-projection-calendar")){
 			const projectionCalendar = gantt.getCalendar("timescale-projection-calendar");
 			startDate = projectionCalendar.getClosestWorkTime({ 
 				date: startDate, 

@@ -919,6 +919,12 @@ export default function(gantt: any) {
 			// Filter tasks
 			if (config.raw && !config.data){
 				const taskStore = gantt.getDatastore("task");
+				// GS-3602. This is one of the two places that read the array instead of asking
+				// the store, so it does not get the recomputation the store's own readers
+				// trigger for themselves. Exporting from inside a `batchUpdate` callback is not
+				// a supported scenario, but the read costs nothing to keep honest: a filter pass
+				// the batch has deferred runs before the visible ids are taken.
+				taskStore._ensureFilter();
 				const filteredIds = taskStore.visibleOrder;
 				if (tasks.length !== filteredIds.length){
 					const filteredDataset:any = [];

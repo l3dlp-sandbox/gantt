@@ -375,7 +375,14 @@ function initDataStores(gantt){
 		for(var i in conf.events){
 			(function(sourceEvent, targetEvent){
 				mapFrom.attachEvent(sourceEvent, function(){
-					return mapTo.callEvent(targetEvent, Array.prototype.slice.call(arguments));
+					// GS-3602. Cheaper than `Array.prototype.slice.call(arguments)`, and the
+					// `onFilterItem` -> `onBeforeTaskDisplay` mapping runs this per task on
+					// every filter pass.
+					var args = new Array(arguments.length);
+					for(var i = 0; i < args.length; i++){
+						args[i] = arguments[i];
+					}
+					return mapTo.callEvent(targetEvent, args);
 				}, targetEvent);
 			})(i, conf.events[i]);
 		}

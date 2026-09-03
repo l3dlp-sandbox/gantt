@@ -1,6 +1,6 @@
 # DHTMLX Gantt - JavaScript Gantt Chart (Community Edition)
 
-[![npm: v.10.0.2](https://img.shields.io/badge/npm-v.10.0.2-blue.svg)](https://www.npmjs.com/package/dhtmlx-gantt) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md) · [![made by DHTMLX](https://img.shields.io/badge/made%20by-DHTMLX-blue)](https://dhtmlx.com/)
+[![npm: v.10.0.3](https://img.shields.io/badge/npm-v.10.0.3-blue.svg)](https://www.npmjs.com/package/dhtmlx-gantt) · [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md) · [![made by DHTMLX](https://img.shields.io/badge/made%20by-DHTMLX-blue)](https://dhtmlx.com/)
 
 ![](dhtmlx_logo.svg)
 

@@ -6,6 +6,130 @@ import isPlaceholderTask from "../../utils/placeholder_task";
 import {replaceValidZeroId} from "../../utils/helpers";
 import SplitTasksHelper from "../common/split_task_helpers";
 
+/**
+ * GS-477. A branch array may carry `$positionById` - a String(id) -> index map
+ * that answers position lookups in O(1) instead of scanning. Non-enumerable, so
+ * it cannot show up in enumeration or serialization of a branch.
+ *
+ * Live branch arrays never leave this module: getChildren()/getSiblings() return
+ * copies, internal callers use _getBranch(). Editing a handed-out array leaves a
+ * stale entry, which splices the wrong slot on the next removal.
+ *
+ * Maintenance policy - every mutation goes through the helpers below:
+ * - append and in-place id replacement keep the map exact in O(1);
+ * - removal, insert-in-the-middle and reorder shift an unbounded number of
+ *   entries, so they DROP the map. Repairing costs O(branch length) per
+ *   mutation, which made re-parse slower than no cache at all.
+ *
+ * The two "absent" states differ:
+ * - `undefined` - never built; any lookup may build it. Keeps an initial parse
+ *   O(1) per row.
+ * - `null` - dropped by a mutation. Mutation-side lookups must NOT rebuild it
+ *   (bulk churn would pay a full rebuild per row); read-heavy callers do,
+ *   through getBranchPosition().
+ *
+ * Ported from `next` (GS-477).
+ */
+function setBranchPositions(branch, positions){
+	Object.defineProperty(branch, "$positionById", {
+		configurable: true,
+		value: positions,
+		writable: true
+	});
+}
+
+function buildBranchPositions(branch){
+	var positions = new Map();
+	for(var i = 0; i < branch.length; i++){
+		// a hole left by the bulk reparent window has no id to index
+		if(branch[i] !== undefined){
+			positions.set(String(branch[i]), i);
+		}
+	}
+	setBranchPositions(branch, positions);
+	return positions;
+}
+
+// ids may be stored as numbers and looked up as strings, or the other way
+// round; the strict probe goes first so a same-type lookup stops at the match
+function scanBranchPosition(branch, id){
+	var index = branch.indexOf(id);
+	if(index === -1){
+		index = branch.indexOf(id + "");
+	}
+	if(index === -1){
+		index = branch.indexOf(+id);
+	}
+	return index;
+}
+
+// lookup used inside the bulk reparent window, where the map is never dropped
+function resolveBranchPosition(branch, id){
+	var positions = branch.$positionById || buildBranchPositions(branch);
+	var position = positions.get(String(id));
+	return position === undefined ? -1 : position;
+}
+
+// only valid when the id's slot is punched out in place, so no position shifts
+function deleteBranchPosition(branch, id){
+	var positions = branch.$positionById;
+	if(positions){
+		positions.delete(String(id));
+	}
+}
+
+// closes the bulk reparent window for one branch: drops the holes in place,
+// keeping the array identity, and re-indexes once
+function compactBranch(branch){
+	var write = 0;
+	for(var read = 0; read < branch.length; read++){
+		var id = branch[read];
+		if(id !== undefined){
+			branch[write] = id;
+			write++;
+		}
+	}
+	branch.length = write;
+	buildBranchPositions(branch);
+}
+
+// read-heavy callers: builds or rebuilds the map
+function getBranchPosition(branch, id){
+	var positions = branch.$positionById || buildBranchPositions(branch);
+	var position = positions.get(String(id));
+	return position === undefined ? -1 : position;
+}
+
+// mutation paths: builds the map once, but never rebuilds one a previous
+// mutation dropped
+function findBranchPosition(branch, id){
+	var positions = branch.$positionById === undefined ? buildBranchPositions(branch) : branch.$positionById;
+	if(!positions){
+		return scanBranchPosition(branch, id);
+	}
+	var position = positions.get(String(id));
+	return position === undefined ? -1 : position;
+}
+
+function appendBranchPosition(branch, id){
+	var positions = branch.$positionById;
+	if(positions){
+		positions.set(String(id), branch.length - 1);
+	}
+}
+
+function replaceBranchPosition(branch, oldId, newId, index){
+	var positions = branch.$positionById;
+	if(positions){
+		positions.delete(String(oldId));
+		positions.set(String(newId), index);
+	}
+}
+
+function dropBranchPositions(branch){
+	setBranchPositions(branch, null);
+}
+
 var TreeDataStore = function(config){
 	DataStore.apply(this, [config]);
 	this._branches = {};
@@ -39,9 +163,14 @@ var TreeDataStore = function(config){
 
 	this.visibleOrder = powerArray.$create();
 	this.fullOrder = powerArray.$create();
+	// GS-3602. See `_updateOrder`.
+	this._pendingOrder = false;
 	this._searchVisibleOrder = {};
 	this._indexRangeCache = {};
 	this._eachItemMainRangeCache = null;
+	// GS-477. Non-null only while `_buildTree` reparents rows: the branches with
+	// holes punched in them, to be compacted when the loop ends.
+	this._holedBranches = null;
 	this._getItemsCache = null;
 	this._skip_refresh = false;
 
@@ -75,53 +204,59 @@ var TreeDataStore = function(config){
 		haveSplitItems = false;
 
 		this.eachItem(function(item){
-			var parent = this.getParent(item.id);
+			// GS-3602. Runs per item on every filter pass: passing the item to `getParent`
+			// spares a `getItem`.
+			var itemId = item.id;
+			var parent = this.getParent(item);
 			if(item.$open && taskOpenState[parent] !== false){
-				taskOpenState[item.id] = true;
+				taskOpenState[itemId] = true;
 			}else{
-				taskOpenState[item.id] = false;
+				taskOpenState[itemId] = false;
 			}
 
 			if(this._isSplitItem(item)){
 				haveSplitItems = true;
-				splitParents[item.id] = true;
-				splitItems[item.id] = true;
+				splitParents[itemId] = true;
+				splitItems[itemId] = true;
 			}
 
 
 			if(haveSplitItems && splitItems[parent]){
-				if(this._isDefaultItem(item) || this._isInlineChildItem(item)) splitItems[item.id] = true;
+				if(this._isDefaultItem(item) || this._isInlineChildItem(item)) splitItems[itemId] = true;
 			}
 
 
-			if(taskOpenState[parent] || taskOpenState[parent] === undefined || this._isInlineChildItem(item)){
-				taskVisibility[item.id] = true;
+			var parentOpen = taskOpenState[parent];
+			if(parentOpen || parentOpen === undefined || this._isInlineChildItem(item)){
+				taskVisibility[itemId] = true;
 			}else{
-				taskVisibility[item.id] = false;
+				taskVisibility[itemId] = false;
 			}
 		});
 	});
 
 	this.attachEvent("onFilterItem", function(id, item){
-
-		var canOpenSplitTasks = false;
-		if(this._ganttConfig){
-			var canOpenSplitTasks = this._ganttConfig.open_split_tasks;
-		}
-
-		var open = taskVisibility[item.id];
+		// GS-3602. Dispatched per item on every filter pass.
+		var itemId = item.id;
+		var visible = taskVisibility[itemId];
+		var open = visible;
 
 		if(haveSplitItems){
-			if(open && splitItems[item.id] && !splitParents[item.id]){
-				open = !!canOpenSplitTasks;
-			}
+			var isSplitChild = splitItems[itemId] && !splitParents[itemId];
+			if(isSplitChild){
+				var canOpenSplitTasks = false;
+				if(this._ganttConfig){
+					canOpenSplitTasks = this._ganttConfig.open_split_tasks;
+				}
+				if(open){
+					open = !!canOpenSplitTasks;
+				}
 
-			if(splitItems[item.id] && !splitParents[item.id]){
 				if(!this._isSplitChildItem(item)) item.$split_subtask = true;
 			}
 		}
 
-		item.$expanded_branch = !!taskVisibility[item.id];
+		item.$expanded_branch = !!visible;
 		if(this._isInlineChildItem(item)){
 			open = false;
 		}
@@ -144,9 +279,26 @@ TreeDataStore.prototype = utils.mixin({
 		_buildTree: function(data){
 			var item = null;
 			var rootId = this.$getRootId();
-			for (var i = 0, len = data.length; i < len; i++){
-				item = data[i];
-				this.setParent(item, replaceValidZeroId(this.getParent(item), rootId) || rootId);
+
+			// GS-477. The bulk reparent window. Each setParent below moves the row to the end
+			// of its branch; splicing per row is quadratic twice over - the tail shifts, and
+			// the shift invalidates the position index so the next lookup scans. Inside the
+			// window the removal punches an `undefined` hole in place instead, and each
+			// touched branch is compacted once when the window closes. The `finally` matters:
+			// `setParent` reaches `calculateItemLevel`, which throws on a cyclic tree, and a
+			// hole must never outlive this loop.
+			var holed = new Set();
+			this._holedBranches = holed;
+			try{
+				for (var i = 0, len = data.length; i < len; i++){
+					item = data[i];
+					this.setParent(item, replaceValidZeroId(this.getParent(item), rootId) || rootId);
+				}
+			}finally{
+				this._holedBranches = null;
+				holed.forEach(function(branch){
+					compactBranch(branch);
+				});
 			}
 
 			// calculating $level for each item
@@ -196,11 +348,18 @@ TreeDataStore.prototype = utils.mixin({
 				this.setParent(item, parent);
 			}
 
-			var parentIndex = this.getIndexById(parent);
-			var targetIndex = parentIndex + Math.min(Math.max(index, 0), this.visibleOrder.length);
+			// GS-3602. Only worked out when the caller asked for a position: with no index the
+			// base store appends, and reading the visible order here would force a deferred
+			// filter pass for every insertion.
+			var targetIndex;
+			var numericIndex = index * 1;
+			if(numericIndex === numericIndex){
+				var parentIndex = this.getIndexById(parent);
+				targetIndex = parentIndex + Math.min(Math.max(numericIndex, 0), this.visibleOrder.length);
 
-			if(targetIndex*1 !== targetIndex){
-				targetIndex = undefined;
+				if(targetIndex*1 !== targetIndex){
+					targetIndex = undefined;
+				}
 			}
 			DataStore.prototype._addItemInner.call(this, item, targetIndex);
 			this.setParent(item, parent);
@@ -211,7 +370,7 @@ TreeDataStore.prototype = utils.mixin({
 			this._add_branch(item, index);
 		},
 		_changeIdInner: function(oldId, newId){
-			var children = this.getChildren(oldId);
+			var children = this._getBranch(oldId);
 			var visibleOrder = this._searchVisibleOrder[oldId];
 
 			DataStore.prototype._changeIdInner.call(this, oldId, newId);
@@ -249,14 +408,35 @@ TreeDataStore.prototype = utils.mixin({
 		},
 
 		_updateOrder: function(code){
-
-			this.fullOrder = powerArray.$create();
-			this._traverseBranches(function(taskId){
-				this.fullOrder.push(taskId);
-			});
+			// GS-3602. Re-deriving the order walks the whole branch tree, and every add and
+			// delete asks for it. While deferred it is recorded and done once at the end; the
+			// base store still keeps its own array in step per item, so only the order waits.
+			if(this._deferFilter > 0){
+				this._pendingOrder = true;
+			}else{
+				this.fullOrder = powerArray.$create();
+				this._traverseBranches(function(taskId){
+					// GS-3602. A branch can hold an id with no item (see `_eachItemIterate`);
+					// keeping it would make `count()` report a task no read can return.
+					if(!this.exists(taskId)) return;
+					this.fullOrder.push(taskId);
+				});
+			}
 
 			if(code)
 				DataStore.prototype._updateOrder.call(this, code);
+		},
+
+		// GS-3602. An insertion made while the order recomputation was deferred appended
+		// itself instead of taking its place under its parent; re-deriving once on release
+		// puts both orders back in step with the tree.
+		_flushDeferredFilter: function(){
+			if(this._pendingOrder || this._pendingFilter){
+				// cleared only after the walk: if it throws, the order is still owed
+				this._updateOrder();
+				this._pendingOrder = false;
+			}
+			DataStore.prototype._flushDeferredFilter.call(this);
 		},
 
 		_removeItemInner: function(id){
@@ -297,8 +477,8 @@ TreeDataStore.prototype = utils.mixin({
 			var source = this.getItem(sid);
 			var source_pid = this.getParent(source.id);
 
-			var tbranch = this.getChildren(parent);
-			const siblings = this.getSiblings(sid);
+			var tbranch = this._getBranch(parent);
+			const siblings = this._getSiblingsBranch(sid);
 
 			if (tindex == -1)
 				tindex = tbranch.length + 1;
@@ -306,7 +486,10 @@ TreeDataStore.prototype = utils.mixin({
 				var sindex = this.getBranchIndex(sid);
 				if (sindex == tindex) return;
 				//GS-3004: prevent reorder single task in the root tree
-				if (parent === gantt.config.root_id && siblings.length <= 1) {
+				// `root_id` is this store's own config, resolved at the top of the method. The
+				// bare global `gantt` this used to read does not exist in the node bundle, so
+				// any same-parent reorder threw there.
+				if (parent === root_id && siblings.length <= 1) {
 					return;
 				}
 			}
@@ -323,16 +506,23 @@ TreeDataStore.prototype = utils.mixin({
 					i--;
 				}
 			}
+			if(placeholderIds.length){
+				// GS-477. The splices above shifted positions in the live branch.
+				dropBranchPositions(tbranch);
+			}
 
 			this._replace_branch_child(source_pid, sid);
-			tbranch = this.getChildren(parent);
+			tbranch = this._getBranch(parent);
 
 			var tid = tbranch[tindex];
 			tid = replaceValidZeroId(tid, root_id);
-			if (!tid) //adding as last element
+			if (!tid){ //adding as last element
 				tbranch.push(sid);
-			else
+				appendBranchPosition(tbranch, sid);
+			}else{
+				// a fresh array - it carries no index, and the first lookup builds one
 				tbranch = tbranch.slice(0, tindex).concat([ sid ]).concat(tbranch.slice(tindex));
+			}
 
 			if (placeholderIds.length){
 				tbranch = tbranch.concat(placeholderIds);
@@ -358,20 +548,28 @@ TreeDataStore.prototype = utils.mixin({
 		},
 
 		getBranchIndex: function(id){
-			var branch = this.getChildren(this.getParent(id));
-			let index = branch.indexOf(id + "");
-			if (index == -1){
-				index = branch.indexOf(+id);
-			}
-			return index;
+			// GS-477. Read-heavy - the tasks store recomputes $local_index for every visible
+			// row on every full refresh - so it rebuilds a dropped index rather than scanning.
+			var branch = this._getBranch(this.getParent(id));
+			return getBranchPosition(branch, id);
 		},
 		hasChild: function(id){
 			var branch = this._branches[id];
 			return branch && branch.length;
 		},
-		getChildren: function(id){
+		/**
+		 * GS-477. The live branch array. Internal use only: mutating it outside the branch
+		 * helpers corrupts the position index it carries.
+		 */
+		_getBranch: function(id){
 			var branch = this._branches[id];
 			return branch ? branch : powerArray.$create();
+		},
+		getChildren: function(id){
+			// GS-477. A copy - an outside splice or reorder would silently invalidate the
+			// live array's position index. Left as a plain array: `gantt.getChildren()`
+			// always returned a plain slice(), so this is the contract callers already had.
+			return this._getBranch(id).slice();
 		},
 
 		isChildOf: function(childId, parentId){
@@ -403,14 +601,21 @@ TreeDataStore.prototype = utils.mixin({
 
 		getSiblings: function(id){
 			if(!this.exists(id)){
-				return powerArray.$create();
+				return [];
 			}
 			var parent = this.getParent(id);
 			return this.getChildren(parent);
 
 		},
+		// GS-477. See `_getBranch`.
+		_getSiblingsBranch: function(id){
+			if(!this.exists(id)){
+				return powerArray.$create();
+			}
+			return this._getBranch(this.getParent(id));
+		},
 		getNextSibling: function(id){
-			var siblings = this.getSiblings(id);
+			var siblings = this._getSiblingsBranch(id);
 			for(var i= 0, len = siblings.length; i < len; i++){
 				if(isEqualIds(siblings[i], id)){
 					var nextSibling = siblings[i+1];
@@ -423,7 +628,7 @@ TreeDataStore.prototype = utils.mixin({
 			return null;
 		},
 		getPrevSibling: function(id){
-			var siblings = this.getSiblings(id);
+			var siblings = this._getSiblingsBranch(id);
 			for(var i= 0, len = siblings.length; i < len; i++){
 				if(isEqualIds(siblings[i], id)){
 					var previousSibling = siblings[i-1];
@@ -455,6 +660,7 @@ TreeDataStore.prototype = utils.mixin({
 
 		clearAll: function(){
 			this._branches = {};
+			this._eachItemMainRangeCache = null;
 			DataStore.prototype.clearAll.call(this);
 		},
 
@@ -487,20 +693,25 @@ TreeDataStore.prototype = utils.mixin({
 			}
 		},
 		_eachItemIterate: function(code, startId, cache){
-			var itemsStack = this.getChildren(startId);
+			var itemsStack = this._getBranch(startId);
 			if(itemsStack.length){
 				itemsStack = itemsStack.slice().reverse();
 			}
 			while(itemsStack.length){
 				var itemId = itemsStack.pop();
 				var item = this.getItem(itemId);
+				// GS-3602. A branch can hold an id whose item is not in the store:
+				// `gantt.addTask` registers the record through `setParent` before the store
+				// inserts it, so anything walking the tree inside that window - an `initItem`
+				// handler, a filter pass triggered by a read - used to throw here.
+				if(!item) continue;
 				code.call(this, item);
 				if(cache){
 					cache.push(item);
 				}
 
 				if(this.hasChild(item.id)){
-					var children = this.getChildren(item.id);
+					var children = this._getBranch(item.id);
 					var len = children.length;
 					for(var i = len - 1; i >= 0; i--){
 						itemsStack.push(children[i]);
@@ -554,14 +765,16 @@ TreeDataStore.prototype = utils.mixin({
 			var pid = parent === undefined ? this.getParent(item) : parent;
 			if (!this.hasChild(pid))
 				this._branches[pid] = powerArray.$create();
-			var branch = this.getChildren(pid);
-			var added_already = branch.indexOf(item.id + "") > -1 || branch.indexOf(+item.id) > -1;
+			var branch = this._getBranch(pid);
+			var added_already = findBranchPosition(branch, item.id) > -1;
 			if(!added_already){
 				if(index*1 == index){
-
+					// GS-477. An insert in the middle shifts every position after it.
 					branch.splice(index, 0, item.id);
+					dropBranchPositions(branch);
 				}else{
 					branch.push(item.id);
+					appendBranchPosition(branch, item.id);
 				}
 
 				item.$rendered_parent = pid;
@@ -585,20 +798,31 @@ TreeDataStore.prototype = utils.mixin({
 		},
 
 		_replace_branch_child: function(node, old_id, new_id){
-			var branch = this.getChildren(node);
+			var branch = this._getBranch(node);
 			if (branch && node !== undefined){
+				// GS-477. Inside the bulk reparent window a removal punches a hole instead of
+				// splicing, so no position shifts. See `_buildTree`.
+				if(!new_id && this._holedBranches){
+					var holeIndex = resolveBranchPosition(branch, old_id);
+					if(holeIndex > -1){
+						branch[holeIndex] = undefined;
+						deleteBranchPosition(branch, old_id);
+						this._holedBranches.add(branch);
+					}
+					return;
+				}
+
 				var newbranch = powerArray.$create();
 
-				let index = branch.indexOf(old_id + "");
-				if (index == -1 && !isNaN(+old_id)){
-					index = branch.indexOf(+old_id);
-				} 
+				let index = findBranchPosition(branch, old_id);
 
 				if (index > -1){
 					if (new_id){
 						branch.splice(index, 1, new_id);
+						replaceBranchPosition(branch, old_id, new_id, index);
 					} else {
 						branch.splice(index, 1);
+						dropBranchPositions(branch);
 					}
 				}
 				newbranch = branch;
@@ -632,7 +856,7 @@ TreeDataStore.prototype = utils.mixin({
 				};
 			}
 
-			var els = this.getChildren(parent);
+			var els = this._getBranch(parent);
 
 			if (els){
 				var temp = [];
@@ -641,6 +865,9 @@ TreeDataStore.prototype = utils.mixin({
 
 				temp.sort(criteria);
 
+				// GS-477. Dropped first, so nothing reads a stale position off a
+				// half-reordered branch.
+				dropBranchPositions(els);
 				for (var i = 0; i < temp.length; i++) {
 					els[i] = temp[i].id;
 					this.sort(field, desc, els[i]);
@@ -650,11 +877,14 @@ TreeDataStore.prototype = utils.mixin({
 
 		filter: function(rule){
 			for(let i in this.pull){
-				const renderedParent = this.pull[i].$rendered_parent;
-				const actualParent = this.getParent(this.pull[i]);
+				const item = this.pull[i];
+				const renderedParent = item.$rendered_parent;
+				const actualParent = this.getParent(item);
 				//GS-2339: could be different types of the ids
-				if(!isEqualIds(renderedParent,actualParent)){
-					this._move_branch(this.pull[i], renderedParent, actualParent);
+				// GS-3602. `isEqualIds` stringifies both ids; the identity test settles the
+				// common case without allocating.
+				if(renderedParent !== actualParent && !isEqualIds(renderedParent,actualParent)){
+					this._move_branch(item, renderedParent, actualParent);
 				}
 			}
 			return DataStore.prototype.filter.apply(this, arguments);

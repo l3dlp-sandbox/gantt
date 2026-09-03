@@ -1,3 +1,22 @@
+### 10.0.3
+
+- Improve the performance of loading tasks - parsing large datasets no longer slows down quadratically as the number of tasks on the same level grows, so the gain is largest on flat or wide structures and minimal on deep trees that hold few tasks per level
+- Improve the performance of re-loading data with parse() - re-parsing a dataset that is already loaded now costs about the same as loading it for the first time
+- Improve the performance of Auto Scheduling on charts with many project tasks - both autoSchedule() and parse() are significantly faster and no longer take time proportional to the square of the number of tasks
+- Improve the performance of applying an Auto Scheduling result - the time it takes no longer grows with the number of links in the chart, but with the number of tasks that actually moved
+- Improve the performance of bulk changes applied inside batchUpdate() - the chart no longer recalculates the visible task order after every added or deleted task, but once for the whole batch
+- Improve the performance of selecting a task, editing a task, and rendering the chart on large datasets by removing unnecessary per-task work when recalculating the visible task order
+
+- Fix the issue where Auto Scheduling moved an unlinked subtask to the start of its project when a sibling subtask had an incoming link of its own
+- Fix the issue where a project's subtasks lost their relative positions when one subtask's own link moved it past the date the project's link landed on
+- Fix the issue where dragging a project forward increased the distance between its subtasks instead of preserving it
+- Fix the issue where dragging a project backward could squeeze or overlap its subtasks instead of refusing a move that would violate a link
+- Fix the issue where calling autoSchedule() for a single task could break an existing link to a task outside the scheduled scope
+- Fix the issue where dragging a project could reduce the protected slack of the tasks that precede it
+- Fix the issue where saving or closing the lightbox threw an error when the timeline was hidden (show_chart: false), which also made the lightbox impossible to close
+- Fix the issue where calling clearAll() on a silent datastore left its internal caches unrefreshed, so methods like getItems() and eachItem() kept returning the tasks that had just been removed
+
+
 ### 10.0.2
 
 - Fix the issue where the tasks were sorted by their ids instead of keeping the loading order after the grouping was applied or reset - this also affected React Gantt, Angular Gantt, and Vue Gantt, where replacing the data collection or adding tasks to it re-sorted the rest of the tasks by id

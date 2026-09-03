@@ -51,7 +51,9 @@ export default {
 		return result;
 	},
 	lastChildTarget: function lastChildTarget(dndTaskId, targetTaskId, store) {
-		var children = store.getChildren(targetTaskId);
+		// GS-477. Read-only use of the live branch: called with the root id (multi_level.js),
+		// so on a flat chart getChildren() would copy the whole chart per drag hit-test.
+		var children = store._getBranch(targetTaskId);
 		var result = this.createDropTargetObject();
 		result.targetId = children[children.length - 1];
 		result.targetParent = targetTaskId;
